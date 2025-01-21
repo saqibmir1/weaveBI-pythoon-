@@ -1,8 +1,8 @@
 ## Prerequisites
 
 - Python 3.12
-- A running instance of a PostgreSQL database for storing application data.
-- A running instance of redis for storing OTPs (optional)
+- A running instance of a PostgreSQL .
+- A running instance of redis (optional).
 ---
 
 ## Installation
