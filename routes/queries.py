@@ -13,7 +13,7 @@ from utils.logger import logger
 QueryRoute = APIRouter()
 
 
-@QueryRoute.post("/save_queries", response_model=ApiResponse)
+@QueryRoute.post("/", response_model=ApiResponse)
 async def save_queries(
         post_queries: SaveQueryRequest,
         db:AsyncSession = Depends(get_db),
@@ -156,7 +156,7 @@ async def get_queries_count(database_id:int, user:User=Depends(get_current_user)
     
 
 
-@QueryRoute.delete("/delete_query/{query_id}", response_model=ApiResponse)
+@QueryRoute.delete("/{query_id}", response_model=ApiResponse)
 async def delete_query(query_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         success = await QueryController.delete_query(query_id, user, db)
@@ -179,3 +179,13 @@ async def delete_query(query_id:int, user:User=Depends(get_current_user), db:Asy
                 "error": {"message": f"{e}"},
             },
         )
+    
+
+
+@QueryRoute.get("/")
+async def get_query(query_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        query = await QueryController.get_query(query_id, user, db)
+        return query
+    except Exception as exc:
+        return exc

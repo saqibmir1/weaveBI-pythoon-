@@ -13,7 +13,7 @@ from utils.logger import logger
 DbRoute = APIRouter()
 
 
-@DbRoute.post("/create", response_model=ApiResponse)
+@DbRoute.post("/", response_model=ApiResponse)
 async def create_new_db_credentials(
     db_credentials: DbCredentials,
     user: User = Depends(get_current_user),
@@ -46,7 +46,7 @@ async def test_connection(db_credentials:DbCredentials):
 
 
 
-@DbRoute.get("/get")
+@DbRoute.get("/")
 async def get_dbs(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
@@ -85,7 +85,7 @@ async def update_db_credentials(
 
 
 
-@DbRoute.delete("/delete/{db_id}", response_model=ApiResponse)
+@DbRoute.delete("/{db_id}", response_model=ApiResponse)
 async def delete_db_credentials(
     db_id: int,
     user: User = Depends(get_current_user),

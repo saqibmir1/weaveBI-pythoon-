@@ -15,6 +15,10 @@ class DashboardController:
     async def get_dashboards(user:User, db:AsyncSession):
          dashboard_service = DashboardService(db)
          return await dashboard_service.get_dashboards(user)
+    
+    async def get_dashboard(dashboard_id:int, user:User, db:AsyncSession):
+            dashboard_service = DashboardService(db)
+            return await dashboard_service.get_dashboard(dashboard_id, user)
 
 
     async def update_dashboard(updated_dashboard:DashboardUpdate, user:User,db:AsyncSession):
@@ -42,5 +46,6 @@ class DashboardController:
           return await dashboard_service.fetch_dashboard_data(dashboard_id, user)
 
 
-
-
+    async def get_dashboard_queries(dashboard_id:int, user:User, db:AsyncSession):
+          dashboard_service = DashboardService(db)
+          return await dashboard_service.get_dashboard_queries(dashboard_id, user)

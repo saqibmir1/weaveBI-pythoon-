@@ -49,3 +49,7 @@ class QueryController:
     async def delete_query(query_id: int, user: User, db: AsyncSession,):
         query_service = QueryService(db=db)
         return await query_service.delete_query(query_id, user)
+    
+    async def get_query(query_id: int, user: User, db: AsyncSession):
+        query_service = QueryService(db=db)
+        return await query_service.get_query(query_id, user)

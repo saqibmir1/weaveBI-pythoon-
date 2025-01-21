@@ -391,3 +391,52 @@ class DashboardService:
             )
 
 
+
+    async def get_dashboard(self, dashboard_id: int, user:User):
+        try:
+            result = await self.db.execute(
+                select(Dashboard).where(
+                    (Dashboard.id == dashboard_id) & (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
+                )
+            )
+            dashboard = result.scalar_one_or_none()
+            if not dashboard:
+                logger.warning(f"Dashboard with ID {dashboard_id} not found or not accessible by user {user.id}")
+                return None
+
+            return dashboard
+        except Exception as e:
+            logger.error(f"DashboardService->get_dashboard: Error fetching dashboard - {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while fetching dashboard."
+            )
+        
+
+    async def get_dashboard_queries(self, dashboard_id:int, user:User):
+        try:
+            result = await self.db.execute(
+                select(Query).join(dashboard_queries).where(
+                    (dashboard_queries.c.dashboard_id == dashboard_id) & (Query.is_deleted == False)
+                )
+            )
+            queries = result.scalars().all()
+            logger.info(f"Fetched all queries for dashboard with ID {dashboard_id}")
+
+            return [
+                {
+                    "id": query.id,
+                    "query_name": query.query_name,
+                    "query_text": query.query_text,
+                    "output_type": query.output_type,
+                    "created_at": query.created_at,
+                    "updated_at": query.updated_at
+                }
+                for query in queries
+            ]
+        except Exception as e:
+            logger.error(f"DashboardService->get_dashboard_queries: Error fetching queries - {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while fetching queries."
+            )
