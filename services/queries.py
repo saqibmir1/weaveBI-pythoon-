@@ -379,6 +379,14 @@ class QueryService:
 
     async def delete_query(self, query_id:int, user:User):
         try:
+
+            # check if is_deleted == True
+            query = await self.db.execute(select(Query).where(Query.id == query_id))
+            query = query.scalar_one_or_none()
+            if query.is_deleted:
+                logger.info(f"QueryService->delete_query: query {query_id} is already soft deleted")
+                return True
+            
             # soft delete query
             await self.db.execute(
                 update(Query).where((Query.id == query_id) & (Query.user_id == user.id)).values(is_deleted=True)
@@ -397,3 +405,22 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while deleting query."
             )
+        
+
+
+
+    async def get_query(self, query_id:int, user:User):
+        try:
+            query = await self.db.execute(select(Query).where((Query.id == query_id) & (Query.user_id==user.id)))
+            query = query.scalar_one_or_none()
+            if not query:
+                logger.info(f"QueryService->get_query: query {query_id} not found")
+                return None
+            return query
+        except Exception as e:
+            logger.error(f"QueryService->get_query: Error fetching query {query_id} - {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while fetching query."
+            )
+        
