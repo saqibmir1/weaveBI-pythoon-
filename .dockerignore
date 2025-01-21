@@ -1,0 +1,24 @@
+# Ignore git-related files
+.git
+.gitignore
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.swp
+
+# Ignore tests and documentation (if not needed)
+tests/
+docs/
+
+
+
+# Ignore Docker's own cache
+.dockerignore
+
+to-do.txt

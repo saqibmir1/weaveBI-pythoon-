@@ -1,0 +1,181 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from auth.deps import get_current_user, get_db
+from models.models import User
+from sqlalchemy.ext.asyncio import AsyncSession
+from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest
+from schemas.generic_response_models import ApiResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from controllers.queries import QueryController
+from typing import List
+from utils.logger import logger
+
+
+QueryRoute = APIRouter()
+
+
+@QueryRoute.post("/save_queries", response_model=ApiResponse)
+async def save_queries(
+        post_queries: SaveQueryRequest,
+        db:AsyncSession = Depends(get_db),
+        user: User = Depends(get_current_user)
+):
+    try:
+        success = await QueryController.save_queries(post_queries, db, user)
+        if not success:
+            return ApiResponse(
+                success=False,
+                message="Couldn't save query."
+            )
+        return ApiResponse(
+            success=True,
+            message="Query saved successfully."
+        )
+    except Exception as e:
+        logger.error(f"QueryRoute->save_queries: {user.id=} couldn't save query. Reason {e}.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't save query.",
+                "error": {"message": f"{e}"},
+            },
+        )
+
+
+
+
+
+@QueryRoute.post("/execute")
+async def execute_query(
+    query_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+
+    try:
+        data = await QueryController.execute_query(query_id, db, user)
+        return data
+        
+    
+    except Exception as e:
+        logger.error(f"QueryRoute->execute_query: {user.id=} Error occured while executing query. Reason: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occured while executing query"
+        )
+    
+
+
+
+@QueryRoute.get("/insights/{query_id}", response_model=ApiResponse)
+async def get_insights(
+    query_id: int,
+    use_web:bool=False,
+    request: QueryInsightsRequest = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    try:
+        insights = await QueryController.get_insights(
+            query_id=query_id,
+            use_web=use_web,
+            custom_instructions=request.custom_instructions,
+            db=db,
+            user=current_user
+        )
+        return ApiResponse(
+            success=True,
+            message="Insights generated successfully",
+            data={
+                "Insights": insights
+            }
+        )
+    except Exception as exc:
+        return ApiResponse(
+            success=False,
+            message=f"An error occured while generating insights for query {query_id}",
+            error=str(exc)
+        )
+    
+
+
+
+@QueryRoute.post("/link_query_to_dashboard", response_model=ApiResponse)
+async def link_query_to_dashboard(
+    query_id: int,
+    dashboard_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    try:
+        success = await QueryController.link_query_to_dashboard(query_id, dashboard_id, db, user)
+        if not success:
+            return ApiResponse(
+                success=False,
+                message="Couldn't link query to dashboard."
+            )
+        return ApiResponse(
+            success=True,
+            message="Query linked to dashboard successfully."
+        )
+    except Exception as e:
+        logger.error(f"QueryRoute->link_query_to_dashboard: {user.id=} couldn't link query to dashboard. Reason {e}.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't link query to dashboard.",
+                "error": {"message": f"{e}"},
+                },
+            )
+    
+
+
+
+
+@QueryRoute.get("/fetch_database_queries/{database_id}")
+async def fetch_database_queries(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        queries = await QueryController.fetch_database_queries(database_id, user, db)
+        return queries
+    except Exception as exc:
+        return exc
+
+    
+@QueryRoute.get("/queries_count/{dashboard_id}", response_model=ApiResponse)
+async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        queries_count = await QueryController.get_queries_count(database_id, user, db)
+        return ApiResponse(
+            data={"count": queries_count}
+        )
+    
+    except Exception as exc:
+        return exc
+    
+
+
+@QueryRoute.delete("/delete_query/{query_id}", response_model=ApiResponse)
+async def delete_query(query_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        success = await QueryController.delete_query(query_id, user, db)
+        if not success:
+            return ApiResponse(
+                success=False,
+                message="Couldn't delete query."
+            )
+        return ApiResponse(
+            success=True,
+            message="Query deleted successfully."
+        )
+    except Exception as e:
+        logger.error(f"QueryRoute->delete_query: {user.id=} couldn't delete query. Reason {e}.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't delete query.",
+                "error": {"message": f"{e}"},
+            },
+        )
