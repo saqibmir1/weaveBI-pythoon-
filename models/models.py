@@ -19,6 +19,11 @@ dashboard_queries = Table(
     Base.metadata,
     Column('dashboard_id', Integer, ForeignKey('dashboards.id'), primary_key=True, nullable=False),
     Column('query_id', Integer, ForeignKey('queries.id'), primary_key=True, nullable=False),
+    # Add GridStack layout columns
+    Column('x', Integer, nullable=True, default=0),  # horizontal position
+    Column('y', Integer, nullable=True, default=0),  # vertical position
+    Column('w', Integer, nullable=True, default=6),  # width
+    Column('h', Integer, nullable=True, default=4),  # height
 )
 
 

@@ -4,7 +4,7 @@ from models.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.dashboards import DashboardController
 from utils.logger import logger
-from schemas.dashboards import DashboardCreate,  DashboardUpdate, PostQueriesRequest, UpdateQueriesRequest
+from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesRequest
 from schemas.generic_response_models import  ApiResponse
 
 
@@ -265,6 +265,33 @@ async def fetch_dashboard_data(
             error=str(exc)
         )
 
+
+
+
+@DashboardRoute.patch("/dashboard-query-layout", response_model=ApiResponse)
+async def update_dashboard_layout(
+    layout: UpdateQueriesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        success = await DashboardController.update_dashboard_layout(layout, current_user, db)
+        if success:
+            return ApiResponse(
+                success=True,
+                message="Dashboard layout updated successfully."
+            )
+        else:
+            return ApiResponse(
+                success=False,
+                message="Failed to update dashboard layout."
+            )
+    except Exception as exc:
+        return ApiResponse(
+            success=False,
+            message="An error occurred while updating dashboard layout.",
+            error=str(exc)
+        )
 
 # @DashboardRoute.put("/queries", response_model=ApiResponse)
 # async def update_queries(
