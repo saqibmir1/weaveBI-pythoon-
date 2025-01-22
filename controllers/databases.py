@@ -44,11 +44,11 @@ class DatabaseController:
             updated_credentials, user
         )
 
-    async def delete_db_credentials(db_id: int, user: User, db: AsyncSession):
+    async def delete_db_credentials(id: int, user: User, db: AsyncSession):
         logger.info(
-            f"DbCredentialsController->delete_db_credentials: {user.id=} requested deletion of {db_id=}."
+            f"DbCredentialsController->delete_db_credentials: {user.id=} requested deletion of {id=}."
         )
         daoDbCredentials = DatabaseService(db=db)
-        await daoDbCredentials.soft_delete_db(db_id, user)
+        await daoDbCredentials.soft_delete_db(id, user)
 
 

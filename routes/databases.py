@@ -14,7 +14,7 @@ DbRoute = APIRouter()
 
 
 @DbRoute.post("/", response_model=ApiResponse)
-async def create_new_db_credentials(
+async def create_database_credentials(
     db_credentials: DbCredentials,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -30,7 +30,7 @@ async def create_new_db_credentials(
         success=True
     )
 
-@DbRoute.put("/test_connection", response_model=ApiResponse)
+@DbRoute.put("/test-connection", response_model=ApiResponse)
 async def test_connection(db_credentials:DbCredentials):
     response = await DatabaseController.test_connection(db_credentials)
     if response:
@@ -47,7 +47,7 @@ async def test_connection(db_credentials:DbCredentials):
 
 
 @DbRoute.get("/")
-async def get_dbs(
+async def get_user_databases(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     user_databases = await DatabaseController.get_user_dbs(user, db)
@@ -59,7 +59,7 @@ async def get_dbs(
 
 
 @DbRoute.get("/count", response_model=ApiResponse)
-async def get_dbs_count(
+async def get_database_count(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     user_databases_count = await DatabaseController.get_dbs_count(user, db)
@@ -69,8 +69,8 @@ async def get_dbs_count(
         data={"count": user_databases_count},
     )
 
-@DbRoute.put("/update")
-async def update_db_credentials(
+@DbRoute.put("/")
+async def update_database_credentials(
     updated_credentials: UpdatedCredentials,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -85,18 +85,18 @@ async def update_db_credentials(
 
 
 
-@DbRoute.delete("/{db_id}", response_model=ApiResponse)
-async def delete_db_credentials(
-    db_id: int,
+@DbRoute.delete("/{id}", response_model=ApiResponse)
+async def delete_database_credentials(
+    id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await DatabaseController.delete_db_credentials(db_id, user, db)
+    await DatabaseController.delete_db_credentials(id, user, db)
     logger.info(
-        f"DbRoute->delete_db_credentials: Deleted database {db_id=} for {user.id=}."
+        f"DbRoute->delete_db_credentials: Deleted database {id=} for {user.id=}."
     )
     return ApiResponse(
         success=True,
-        message=f"Deleted database credentials with {db_id=}.",
+        message=f"Deleted database credentials with {id=}.",
         data=None,
     )

@@ -1,12 +1,10 @@
-# messy code. will fix later
-
 from fastapi import HTTPException, status
 from sqlalchemy import create_engine, select, text, update, func, insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.models import Database, Query, User, Dashboard, dashboard_queries
 from typing import List
-from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest
+from schemas.queries import  SaveQueryRequest, UpdateQueryRequest
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers.string import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
@@ -377,28 +375,20 @@ class QueryService:
 
 
 
-    async def delete_query(self, query_id:int, user:User):
+    async def delete_query(self, id:int, user:User):
         try:
-
-            # check if is_deleted == True
-            query = await self.db.execute(select(Query).where(Query.id == query_id))
-            query = query.scalar_one_or_none()
-            if query.is_deleted:
-                logger.info(f"QueryService->delete_query: query {query_id} is already soft deleted")
-                return True
-            
             # soft delete query
             await self.db.execute(
-                update(Query).where((Query.id == query_id) & (Query.user_id == user.id)).values(is_deleted=True)
+                update(Query).where((Query.id == id) & (Query.user_id == user.id)).values(is_deleted=True)
             )
-            logger.info(f"QueryService->delete_query: query {query_id} soft deleted")
+            logger.info(f"QueryService->delete_query: query {id} soft deleted")
 
             await self.db.commit()
             return True
 
         except Exception as e:
             logger.error(
-                f"QueryService->delete_query: Error deleting query {query_id} - {str(e)}"
+                f"QueryService->delete_query: Error deleting query {id} - {str(e)}"
             )
             await self.db.rollback()
             raise HTTPException(
@@ -408,19 +398,29 @@ class QueryService:
         
 
 
-
-    async def get_query(self, query_id:int, user:User):
+    async def update_query(self, post_queries: UpdateQueryRequest, user: User):
         try:
-            query = await self.db.execute(select(Query).where((Query.id == query_id) & (Query.user_id==user.id)))
+            query = await self.db.execute(select(Query).where((Query.id == post_queries.query_id) & (Query.user_id == user.id) & (Query.is_deleted == False)))
             query = query.scalar_one_or_none()
             if not query:
-                logger.info(f"QueryService->get_query: query {query_id} not found")
-                return None
-            return query
+                logger.error(f"QueryService->update_query: Query with id {post_queries.id} not found or deleted")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Query with id {post_queries.id} not found"
+                )
+            query.query_name = post_queries.query_name
+            query.query_text = post_queries.query_text
+            query.output_type = post_queries.output_type
+
+            await self.db.commit()
+            await self.db.refresh(query)
+            logger.info(f"QueryService->update_query: Query {post_queries.query_id} updated successfully")
+            
+        
         except Exception as e:
-            logger.error(f"QueryService->get_query: Error fetching query {query_id} - {str(e)}")
+            logger.error(f"QueryService->update_query: Error updating query {post_queries.id} - {str(e)}")
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error occurred while fetching query."
+                detail="Error occurred while updating query."
             )
-        

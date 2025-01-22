@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from auth.deps import get_current_user, get_db
 from models.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest
+from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest, UpdateQueryRequest
 from schemas.generic_response_models import ApiResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.queries import QueryController
@@ -14,7 +14,7 @@ QueryRoute = APIRouter()
 
 
 @QueryRoute.post("/", response_model=ApiResponse)
-async def save_queries(
+async def save_query(
         post_queries: SaveQueryRequest,
         db:AsyncSession = Depends(get_db),
         user: User = Depends(get_current_user)
@@ -67,9 +67,9 @@ async def execute_query(
 
 
 
-@QueryRoute.get("/insights/{query_id}", response_model=ApiResponse)
+@QueryRoute.get("/insights/{id}", response_model=ApiResponse)
 async def get_insights(
-    query_id: int,
+    id: int,
     use_web:bool=False,
     request: QueryInsightsRequest = Depends(),
     db: AsyncSession = Depends(get_db),
@@ -78,7 +78,7 @@ async def get_insights(
 
     try:
         insights = await QueryController.get_insights(
-            query_id=query_id,
+            query_id=id,
             use_web=use_web,
             custom_instructions=request.custom_instructions,
             db=db,
@@ -94,14 +94,14 @@ async def get_insights(
     except Exception as exc:
         return ApiResponse(
             success=False,
-            message=f"An error occured while generating insights for query {query_id}",
+            message=f"An error occured while generating insights for query {id}",
             error=str(exc)
         )
     
 
 
 
-@QueryRoute.post("/link_query_to_dashboard", response_model=ApiResponse)
+@QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse)
 async def link_query_to_dashboard(
     query_id: int,
     dashboard_id: int,
@@ -134,7 +134,7 @@ async def link_query_to_dashboard(
 
 
 
-@QueryRoute.get("/fetch_database_queries/{database_id}")
+@QueryRoute.get("/fetch-database-queries/{database_id}")
 async def fetch_database_queries(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         queries = await QueryController.fetch_database_queries(database_id, user, db)
@@ -143,7 +143,7 @@ async def fetch_database_queries(database_id:int, user:User=Depends(get_current_
         return exc
 
     
-@QueryRoute.get("/queries_count/{dashboard_id}", response_model=ApiResponse)
+@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse)
 async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         queries_count = await QueryController.get_queries_count(database_id, user, db)
@@ -156,10 +156,10 @@ async def get_queries_count(database_id:int, user:User=Depends(get_current_user)
     
 
 
-@QueryRoute.delete("/{query_id}", response_model=ApiResponse)
-async def delete_query(query_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+@QueryRoute.delete("/{id}", response_model=ApiResponse)
+async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
-        success = await QueryController.delete_query(query_id, user, db)
+        success = await QueryController.delete_query(id, user, db)
         if not success:
             return ApiResponse(
                 success=False,
@@ -181,11 +181,26 @@ async def delete_query(query_id:int, user:User=Depends(get_current_user), db:Asy
         )
     
 
-
-@QueryRoute.get("/")
-async def get_query(query_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+@QueryRoute.put("/", response_model=ApiResponse)
+async def update_query(
+    post_queries: UpdateQueryRequest, 
+    user:User=Depends(get_current_user), 
+    db:AsyncSession=Depends(get_db)
+    ):
     try:
-        query = await QueryController.get_query(query_id, user, db)
-        return query
+        await QueryController.update_query(post_queries, user, db)
+        return ApiResponse(
+            success=True,
+            message="Query updated successfully.",
+        )
+
     except Exception as exc:
-        return exc
+        logger.error(f"QueryRoute->update_query: {user.id=} couldn't update query. Reason {exc}.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't update query.",
+                "error": {"message": f"{exc}"},
+            },
+        )

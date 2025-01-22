@@ -16,9 +16,9 @@ class DashboardController:
          dashboard_service = DashboardService(db)
          return await dashboard_service.get_dashboards(user)
     
-    async def get_dashboard(dashboard_id:int, user:User, db:AsyncSession):
+    async def get_dashboard(id:int, user:User, db:AsyncSession):
             dashboard_service = DashboardService(db)
-            return await dashboard_service.get_dashboard(dashboard_id, user)
+            return await dashboard_service.get_dashboard(id, user)
 
 
     async def update_dashboard(updated_dashboard:DashboardUpdate, user:User,db:AsyncSession):

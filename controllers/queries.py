@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest
+from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest, UpdateQueryRequest
 from services.queries import QueryService
 from models.models import User
 from typing import List
@@ -46,10 +46,15 @@ class QueryController:
             return await dashboard_service.get_queries_count(dashboard_id, user)
     
 
-    async def delete_query(query_id: int, user: User, db: AsyncSession,):
+    async def delete_query(id: int, user: User, db: AsyncSession,):
         query_service = QueryService(db=db)
-        return await query_service.delete_query(query_id, user)
+        return await query_service.delete_query(id, user)
     
     async def get_query(query_id: int, user: User, db: AsyncSession):
         query_service = QueryService(db=db)
         return await query_service.get_query(query_id, user)
+    
+
+    async def update_query(post_queries: UpdateQueryRequest, user: User, db: AsyncSession):
+        query_service = QueryService(db=db)
+        return await query_service.update_query(post_queries, user)
