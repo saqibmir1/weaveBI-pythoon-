@@ -44,3 +44,17 @@ class UpdateQuery(BaseModel):
 class UpdateQueriesRequest(BaseModel):
     dashboard_id: int
     queries: List[UpdateQuery]
+
+
+
+
+class QueryLayout(BaseModel):
+    query_id: int
+    x: int
+    y: int
+    w: int
+    h: int
+
+class UpdateQueriesRequest(BaseModel):
+    dashboard_id: int
+    queries: List[QueryLayout]

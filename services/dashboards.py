@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 from models.models import User, Dashboard, Database, Query, dashboard_queries
 from utils.logger import logger
-from schemas.dashboards import DashboardCreate,DashboardUpdate
+from schemas.dashboards import DashboardCreate,DashboardUpdate, UpdateQueriesRequest
 from sqlalchemy.exc import IntegrityError
 import json, yaml, os
 from utils.user_queries import result_to_json_updated
@@ -305,9 +305,6 @@ class DashboardService:
 
 
 
-
-
-    # fetch dashboard data
     async def fetch_dashboard_data(self, dashboard_id: int, user: User):
         try:
             dashboard_result = await self.db.execute(
@@ -318,18 +315,29 @@ class DashboardService:
                 )
             )
             dashboard = dashboard_result.scalar_one_or_none()
-
+            
             if not dashboard:
                 logger.warning(f"Dashboard with ID {dashboard_id} not found or not accessible by user {user.id}")
                 return None
+
+            # Explicitly select only the columns we need
+            query_with_layout = await self.db.execute(
+                select(
+                    Query,
+                    dashboard_queries.c.x,
+                    dashboard_queries.c.y,
+                    dashboard_queries.c.w,
+                    dashboard_queries.c.h
+                )
+                .join(dashboard_queries, Query.id == dashboard_queries.c.query_id)
+                .where(
+                    dashboard_queries.c.dashboard_id == dashboard_id,
+                    Query.is_deleted == False
+                )
+            )
             
-
-            # Get all queries of that dashboard
-            queries_result = await self.db.execute(
-            select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False))
-            dashboard_queries_list = queries_result.scalars().all()
-
-            logger.info(f"Fetched all queries for the dashboard with ID: {dashboard_id} from db")
+            results = query_with_layout.all()
+            logger.info(f"Fetched all queries with layout for dashboard ID: {dashboard_id}")
 
             serialized_queries = [
                 {
@@ -339,28 +347,58 @@ class DashboardService:
                     "output_type": query.output_type,
                     "data": query.data,
                     "updated_at": query.updated_at,
-                    "created_at": query.created_at
+                    "created_at": query.created_at,
+                    # Add layout information
+                    "layout": {
+                        "x": x,
+                        "y": y,
+                        "w": w,
+                        "h": h,
+                    }
                 }
-                for query in dashboard_queries_list
+                for query, x, y, w, h in results
             ]
 
             return {
-              
                 "queries": serialized_queries,
             }
 
         except Exception as e:
             logger.error(f"Error while fetching dashboard data for ID {dashboard_id}: {str(e)}")
-            await self.db.rollback() 
+            await self.db.rollback()
             return None
+        
 
 
 
 
 
+    async def update_dashboard_layout(self, layout_data: UpdateQueriesRequest, user: User):
+        try:
+            for query_layout in layout_data.queries:
+                await self.db.execute(
+                    dashboard_queries.update()
+                    .where(
+                        (dashboard_queries.c.dashboard_id == layout_data.dashboard_id) &
+                        (dashboard_queries.c.query_id == query_layout.query_id)
+                    )
+                    .values(
+                        x=query_layout.x,
+                        y=query_layout.y,
+                        w=query_layout.w,
+                        h=query_layout.h
+                    )
+                )
+            await self.db.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating dashboard layout: {str(e)}")
+            await self.db.rollback()
+            return False
 
 
-
+            
+    
 
     async def fetch_database_queries(self,database_id:int,  user: User):
         try:
