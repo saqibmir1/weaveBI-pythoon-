@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app.include_router(UserRouter, tags=["USERS"], prefix="/users")
-app.include_router(DbRoute, tags=["DATABASES"], prefix="/databases")
-app.include_router(QueryRoute, tags=["QUERY"], prefix="/query")
-app.include_router(DashboardRoute, tags=["DASHBOARD"], prefix="/dashboard")
+app.include_router(UserRouter, tags=["user"], prefix="/user")
+app.include_router(DbRoute, tags=["database"], prefix="/database")
+app.include_router(QueryRoute, tags=["query"], prefix="/query")
+app.include_router(DashboardRoute, tags=["dashboard"], prefix="/dashboard")

@@ -26,3 +26,12 @@ class SaveQueryRequest(BaseModel):
     query_text: str
     output_type: str
     db_id: int
+
+
+
+
+class UpdateQueryRequest(BaseModel):
+    query_id: int
+    query_name: str
+    query_text: str
+    output_type: str

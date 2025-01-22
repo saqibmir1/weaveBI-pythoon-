@@ -1,10 +1,10 @@
 from fastapi import HTTPException
-from sqlalchemy import select, join, update, create_engine, text, func
+from sqlalchemy import select, update, create_engine, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 from models.models import User, Dashboard, Database, Query, dashboard_queries
 from utils.logger import logger
-from schemas.dashboards import DashboardCreate,DashboardUpdate, PostQueriesRequest, UpdateQueriesRequest
+from schemas.dashboards import DashboardCreate,DashboardUpdate
 from sqlalchemy.exc import IntegrityError
 import json, yaml, os
 from utils.user_queries import result_to_json_updated
@@ -392,16 +392,16 @@ class DashboardService:
 
 
 
-    async def get_dashboard(self, dashboard_id: int, user:User):
+    async def get_dashboard(self, id: int, user:User):
         try:
             result = await self.db.execute(
                 select(Dashboard).where(
-                    (Dashboard.id == dashboard_id) & (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
+                    (Dashboard.id == id) & (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
                 )
             )
             dashboard = result.scalar_one_or_none()
             if not dashboard:
-                logger.warning(f"Dashboard with ID {dashboard_id} not found or not accessible by user {user.id}")
+                logger.warning(f"Dashboard with ID {id} not found or not accessible by user {user.id}")
                 return None
 
             return dashboard

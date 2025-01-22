@@ -220,32 +220,32 @@ class DatabaseService:
             },
         )
 
-    async def soft_delete_db(self, db_id: int, user: User):
+    async def soft_delete_db(self, id: int, user: User):
         result = await self.db.execute(
             select(Database).where(
-                ((Database.id == db_id) & (Database.user_id == user.id))
+                ((Database.id == id))
             )
         )
-        result2 = await self.db.execute(select(Query).where(Query.db_id == db_id))
+        result2 = await self.db.execute(select(Query).where(Query.db_id == id))
         db_credential = result.scalar_one_or_none()
-        query = result2.scalar_one_or_none()
+        queries = result2.scalars().all()
 
         if not db_credential:
             logger.error(
-                f"DaoDBCredentilsServices->soft_delete_db: Database with {db_id=} not found for {user.id=}."
+                f"DaoDBCredentilsServices->soft_delete_db: Database with {id=} not found for {user.id=}."
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Database with ID {db_id} not found.",
+                detail=f"Database with ID {id} not found.",
             )
 
         # soft delete here (database and its queries)
         db_credential.is_deleted = True
-        if query:
+        for query in queries:
             query.is_deleted = True
         await self.db.commit()
         await self.db.refresh(user)
 
         logger.info(
-            f"DaoDBCredentilsServices->soft_delete_db: Soft deleted database with {db_id=} for {user.id=}."
+            f"DaoDBCredentilsServices->soft_delete_db: Soft deleted database with {id=} for {user.id=}."
         )

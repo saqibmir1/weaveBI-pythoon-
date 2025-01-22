@@ -96,15 +96,15 @@ async def get_dashboards_count(
 
 
 
-@DashboardRoute.get("/dashboard/{dashboard_id}")
+@DashboardRoute.get("/dashboard/{id}")
 async def get_dashboard(
-    dashboard_id: int,
+    id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        dashboard = await DashboardController.get_dashboard(dashboard_id, user, db)
-        logger.info(f"DashboardRoute->get_dashboard: Dashboard with ID {dashboard_id} retrieved successfully.")
+        dashboard = await DashboardController.get_dashboard(id, user, db)
+        logger.info(f"DashboardRoute->get_dashboard: Dashboard with ID {id} retrieved successfully.")
         return dashboard
     except HTTPException as http_exc:
         logger.warning(f"DashboardRoute->get_dashboard: {http_exc.detail}")
@@ -146,25 +146,25 @@ async def get_dashboard_queries(
 
 
 
-@DashboardRoute.delete("/{dashboard_id}", response_model=ApiResponse)
+@DashboardRoute.delete("/{id}", response_model=ApiResponse)
 async def delete_dashboard(
-    dashboard_id: int,
+    id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        dashboard_deleted = await DashboardController.delete_dashboard(user, db, dashboard_id)
+        dashboard_deleted = await DashboardController.delete_dashboard(user, db, id)
 
         if not dashboard_deleted:
             return ApiResponse(
                 success=False,
-                message=f"Failed to delete dashboard with ID {dashboard_id}.",
+                message=f"Failed to delete dashboard with ID {id}.",
                 error="Dashboard could not be deleted."
             )
         
         return ApiResponse(
             success=True,
-            message=f"Dashboard with ID {dashboard_id} successfully deleted."
+            message=f"Dashboard with ID {id} successfully deleted."
         )
 
     except Exception as exc:
@@ -225,14 +225,14 @@ async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(
 
 
 
-@DashboardRoute.get("/refresh/{dashboard_id}", response_model=ApiResponse)
+@DashboardRoute.get("/refresh/{id}", response_model=ApiResponse)
 async def execute_dashboard_queries(
-    dashboard_id:int,
+    id:int,
     db:AsyncSession=Depends(get_db),
     user:User=Depends(get_current_user)
 ):
     try:
-        data = await DashboardController.execute_dashboard_queries(dashboard_id, db, user)
+        data = await DashboardController.execute_dashboard_queries(id, db, user)
         return ApiResponse(
             success=True,
             message="Queries executed successfully"
@@ -240,19 +240,19 @@ async def execute_dashboard_queries(
     except Exception as exc:
         return ApiResponse(
             success=False,
-            message=f"An error occured while executing queries for dashboard {dashboard_id}",
+            message=f"An error occured while executing queries for dashboard {id}",
             error=str(exc)
         )
 
 
-@DashboardRoute.get("/fetch_data/{dashboard_id}", response_model=ApiResponse)
+@DashboardRoute.get("/fetch-data/{id}", response_model=ApiResponse)
 async def fetch_dashboard_data(
-    dashboard_id:int,
+    id:int,
     db:AsyncSession=Depends(get_db),
     user:User=Depends(get_current_user)
 ):
     try:
-        data = await DashboardController.fetch_dashboard_data(dashboard_id, db, user)
+        data = await DashboardController.fetch_dashboard_data(id, db, user)
         return ApiResponse(
             success=True,
             message="Fetched dashboard data successfully",
@@ -261,7 +261,7 @@ async def fetch_dashboard_data(
     except Exception as exc:
         return ApiResponse(
             success=False,
-            message=f"An error occured while fetching dashboad data with ID {dashboard_id}",
+            message=f"An error occured while fetching dashboad data with ID {id}",
             error=str(exc)
         )
 
