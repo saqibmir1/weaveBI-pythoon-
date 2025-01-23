@@ -2,7 +2,10 @@ from fastapi import HTTPException, status
 from sqlalchemy import create_engine, select, text, update, func, insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.models import Database, Query, User, Dashboard, dashboard_queries
+from models.databases import Database
+from models.queries import Query
+from models.users import User
+from models.dashboards import Dashboard, dashboard_queries
 from typing import List
 from schemas.queries import  SaveQueryRequest, UpdateQueryRequest
 from langchain_openai import ChatOpenAI

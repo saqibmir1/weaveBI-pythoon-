@@ -5,9 +5,10 @@ from alembic import context
 from database.database import Base
 
 # import all models here
-from models.models import User, Database, Dashboard, Query
-from models.models import *
-
+from models.dashboards import Dashboard, dashboard_queries
+from models.databases import Database
+from models.users import User
+from models.queries import Query
 
 from config.db_config import settings
 from sqlalchemy.ext.asyncio import async_engine_from_config

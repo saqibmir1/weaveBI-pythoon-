@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest, UpdateQueryRequest
 from services.queries import QueryService
-from models.models import User
+from models.users import User
 from typing import List
 from utils.logger import logger
 

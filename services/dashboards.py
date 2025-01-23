@@ -2,7 +2,10 @@ from fastapi import HTTPException
 from sqlalchemy import select, update, create_engine, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
-from models.models import User, Dashboard, Database, Query, dashboard_queries
+from models.databases import Database
+from models.queries import Query
+from models.users import User
+from models.dashboards import Dashboard, dashboard_queries
 from utils.logger import logger
 from schemas.dashboards import DashboardCreate,DashboardUpdate, UpdateQueriesRequest
 from sqlalchemy.exc import IntegrityError

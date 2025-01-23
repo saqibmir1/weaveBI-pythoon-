@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from auth.deps import get_current_user, get_db
-from models.models import User
+from models.users import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.dashboards import DashboardController
 from utils.logger import logger

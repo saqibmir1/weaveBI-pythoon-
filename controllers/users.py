@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.jwt_handler import sign_jwt
-from models.models import User
+from models.users import User
 from schemas.users import UserCreate, UserUpdate
 from services.users import UserService
 from passlib.context import CryptContext
