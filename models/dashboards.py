@@ -28,6 +28,19 @@ dashboard_queries = Table(
     Column('h', Integer, nullable=True, default=4),  # height
 )
 
+
+
+# Many-to-Many Join Table: dashboard_tags
+dashboard_tags = Table(
+    'dashboard_tags',
+    Base.metadata,
+    Column('dashboard_id', ForeignKey('dashboards.id'), primary_key=True),
+    Column('tag_id', ForeignKey('tags.id'), primary_key=True)
+)
+
+
+
+
 # Dashboard Table
 class Dashboard(Base):
     __tablename__ = 'dashboards'
@@ -44,8 +57,5 @@ class Dashboard(Base):
     # Relationships
     user = relationship('User', back_populates='dashboards')
     database = relationship('Database', back_populates='dashboards')
-    queries = relationship(
-        'Query',
-        secondary=dashboard_queries,
-        back_populates='dashboards'
-    )
+    queries = relationship('Query',secondary='dashboard_queries',back_populates='dashboards')
+    tags = relationship("Tag", secondary='dashboard_tags', back_populates="dashboards")

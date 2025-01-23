@@ -1,32 +1,34 @@
-from fastapi import HTTPException
+import os
+import json
+import yaml
+import asyncio
+
+from fastapi import HTTPException, status
 from sqlalchemy import select, update, create_engine, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import status
-from models.databases import Database
-from models.queries import Query
-from models.users import User
-from models.dashboards import Dashboard, dashboard_queries
-from utils.logger import logger
-from schemas.dashboards import DashboardCreate,DashboardUpdate, UpdateQueriesRequest
-from sqlalchemy.exc import IntegrityError
-import json, yaml, os
-from utils.user_queries import result_to_json_updated
-from langchain_openai import ChatOpenAI
 from sqlalchemy.orm import sessionmaker
-from nemoguardrails.integrations.langchain.runnable_rails import RunnableRails
-from config.llm_config import settings as llm_settings
 import nest_asyncio
-import asyncio
-from config import llm_config
-from nemoguardrails import RailsConfig
+from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers.string import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain_core.messages import SystemMessage
+from nemoguardrails.integrations.langchain.runnable_rails import RunnableRails
+from nemoguardrails import RailsConfig
+
+from models.databases import Database
+from models.queries import Query
+from models.users import User
+from models.tags import Tag
+from models.dashboards import Dashboard, dashboard_queries, dashboard_tags
+from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
+from utils.logger import logger
+from utils.user_queries import result_to_json_updated
+from config.llm_config import settings as llm_settings
+from config import llm_config
 
 os.environ["OPENAI_API_KEY"] = llm_settings.api_key
-model = llm_config.settings.model
-
 nest_asyncio.apply()
+model = llm_config.settings.model
 config = RailsConfig.from_path("guardrails")
 guard_rail = RunnableRails(config=config)
 
@@ -36,9 +38,10 @@ class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    # create dashboard 
+
     async def create_dashboard(self, user: User, dashboard_data: DashboardCreate):
+    # create dashboard 
+
         # Check if the dashboard already exists
         existing_dashboard_query = await self.db.execute(
             select(Dashboard).where(
@@ -68,18 +71,41 @@ class DashboardService:
             await self.db.commit()
             await self.db.refresh(new_dashboard)
             logger.info(f"Dashboard with id {new_dashboard.id} and db_id {new_dashboard.db_id} stored in DB.")
-        except IntegrityError:
+
+            # Save tags and link them to the dashboard
+            for tag_name in dashboard_data.tags:
+                existing_tag_query = await self.db.execute(
+                    select(Tag).where(Tag.name == tag_name)
+                )
+                existing_tag = existing_tag_query.scalars().first()
+
+                if not existing_tag:
+                    new_tag = Tag(name=tag_name)
+                    self.db.add(new_tag)
+                    await self.db.commit()
+                    await self.db.refresh(new_tag)
+                    await self.db.refresh(new_dashboard)
+
+                    tag_id = new_tag.id
+                else:
+                    tag_id = existing_tag.id
+
+
+                # link dashboard_id -> tag_id
+                await self.db.execute(dashboard_tags.insert().values(dashboard_id=new_dashboard.id, tag_id=tag_id))
+            logger.info(f"Tags saved in db.")
+
+        except Exception as exc:
             await self.db.rollback()
+            logger.info(f'Error while saving dashboard - {exc}')
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while saving the dashboard."
             )
-    
-   
-    
 
-    # get all dashboards
+
     async def get_dashboards(self, user: User):
+    # get all dashboards
         try:
             # Query dashboards for the user that are not deleted
             result = await self.db.execute(
@@ -129,8 +155,8 @@ class DashboardService:
             )
         
 
-    # update dashboard (name and desciption using id)
     async def update_dashboard(self, updated_dashboard:DashboardUpdate, user:User):
+    # update dashboard (name and desciption using id)
         result = await self.db.execute(
             select(Dashboard).where(
                 (Dashboard.id==updated_dashboard.dashboard_id) & (Dashboard.user_id==user.id) & (Dashboard.is_deleted==False)###### check is_deleted later ###########
@@ -149,16 +175,12 @@ class DashboardService:
         return False
 
 
-
-
-
-    # delete dashboard using id
     async def delete_dashboard(self, user:User, dashboard_id:int):
+    # delete dashboard using id
         try:
             # delete from Dashboard
             await self.db.execute(update(Dashboard).where((Dashboard.id == dashboard_id) & (Dashboard.user_id==user.id)).values(is_deleted=True))
             logger.info(f"Soft Deleted dashboard with id: {dashboard_id}")
-
 
             await self.db.commit()
             return True
@@ -170,9 +192,8 @@ class DashboardService:
             return False
         
 
-
-    # execute dashobard queries
     async def execute_dashboard_queries(self, dashboard_id: int, user: User):
+    # execute dashobard queries
 
         # Get all queries of that dashboard
         queries_result = await self.db.execute(
@@ -182,7 +203,6 @@ class DashboardService:
         if not queries:
             logger.warning(f"No queries found for dashboard with ID {dashboard_id}")
             return None
-
 
         # Fetch db schema
         schema_result = await self.db.execute(select(Database.schema).join(Dashboard, Dashboard.db_id == Database.id).where(
@@ -292,7 +312,6 @@ class DashboardService:
                 logger.error(f'Error processing query {query_text}: {str(e)}')
                 raise
 
-
         try:
             # execute all queries in ||
             await asyncio.gather(
@@ -307,8 +326,8 @@ class DashboardService:
             raise
 
 
-
     async def fetch_dashboard_data(self, dashboard_id: int, user: User):
+        # fetch dashboard data ie. its queries, output, and their layout etc
         try:
             dashboard_result = await self.db.execute(
                 select(Dashboard).where(
@@ -372,11 +391,8 @@ class DashboardService:
             return None
         
 
-
-
-
-
     async def update_dashboard_layout(self, layout_data: UpdateQueriesRequest, user: User):
+        # update dashboard layout
         try:
             for query_layout in layout_data.queries:
                 await self.db.execute(
@@ -400,10 +416,8 @@ class DashboardService:
             return False
 
 
-            
-    
-
     async def fetch_database_queries(self,database_id:int,  user: User):
+        # fetch all queries for a database
         try:
             result = await self.db.execute(
                 select(Query).where(
@@ -432,8 +446,8 @@ class DashboardService:
             )
 
 
-
-    async def get_dashboard(self, id: int, user:User):
+    async def get_dashboard(self, id: int, user: User):
+        # get dashboard by id and its tags
         try:
             result = await self.db.execute(
                 select(Dashboard).where(
@@ -441,11 +455,29 @@ class DashboardService:
                 )
             )
             dashboard = result.scalar_one_or_none()
+
             if not dashboard:
                 logger.warning(f"Dashboard with ID {id} not found or not accessible by user {user.id}")
                 return None
 
-            return dashboard
+            # get tags for that dashboard
+            tags_result = await self.db.execute(
+                select(Tag).join(dashboard_tags).where(
+                    dashboard_tags.c.dashboard_id == id
+                )
+            )
+            tags = tags_result.scalars().all()
+            dashboard_data = {
+                "id": dashboard.id,
+                "name": dashboard.name,
+                "description": dashboard.description,
+                "db_id": dashboard.db_id,
+                "created_on": dashboard.created_at,
+                "updated_at": dashboard.updated_at,
+                "tags": [tag.name for tag in tags]
+            }
+
+            return dashboard_data
         except Exception as e:
             logger.error(f"DashboardService->get_dashboard: Error fetching dashboard - {str(e)}")
             raise HTTPException(
@@ -455,6 +487,7 @@ class DashboardService:
         
 
     async def get_dashboard_queries(self, dashboard_id:int, user:User):
+        # get all queries for a dashboard
         try:
             result = await self.db.execute(
                 select(Query).join(dashboard_queries).where(
@@ -481,3 +514,6 @@ class DashboardService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
             )
+        
+
+        

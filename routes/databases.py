@@ -2,13 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.deps import get_current_user, get_db
 from models.users import User
-from schemas.databases import (
-    DbCredentials,
-    UpdatedCredentials,
-)
+from schemas.databases import DbCredentials, UpdatedCredentials
 from controllers.databases import DatabaseController
 from schemas.generic_response_models import ApiResponse
 from utils.logger import logger
+
 
 DbRoute = APIRouter()
 

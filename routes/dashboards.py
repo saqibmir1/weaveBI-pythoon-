@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from auth.deps import get_current_user, get_db
 from models.users import User
-from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.dashboards import DashboardController
 from utils.logger import logger
 from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesRequest
 from schemas.generic_response_models import  ApiResponse
-
+from typing import List
 
 
 DashboardRoute = APIRouter()
@@ -70,6 +70,10 @@ async def get_dashboards(
             message="An unexpected error occurred while retrieving dashboards.",
             error=str(exc)
         )
+    
+@DashboardRoute.post("/by-tags")
+async def get_dashboards_by_tags():
+    pass
     
 
 @DashboardRoute.get("/count", response_model=ApiResponse)
@@ -292,6 +296,9 @@ async def update_dashboard_layout(
             message="An error occurred while updating dashboard layout.",
             error=str(exc)
         )
+    
+
+
 
 # @DashboardRoute.put("/queries", response_model=ApiResponse)
 # async def update_queries(
