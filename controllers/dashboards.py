@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.users import User
 from services.dashboards import DashboardService
-from schemas.dashboards import DashboardCreate, DashboardUpdate , PostQueriesRequest, UpdateQueriesRequest
+from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
 
 
 

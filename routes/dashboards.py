@@ -6,7 +6,6 @@ from controllers.dashboards import DashboardController
 from utils.logger import logger
 from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesRequest
 from schemas.generic_response_models import  ApiResponse
-from typing import List
 
 
 DashboardRoute = APIRouter()
