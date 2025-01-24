@@ -1,4 +1,4 @@
-from models.models import User
+from models.users import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.databases import DbCredentials, UpdatedCredentials
 from services.databases import DatabaseService

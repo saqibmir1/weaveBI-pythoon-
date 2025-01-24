@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from auth.deps import get_current_user, get_db
-from models.models import User
+from models.users import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryRequest, UpdateQueryRequest
 from schemas.generic_response_models import ApiResponse
@@ -13,7 +13,7 @@ from utils.logger import logger
 QueryRoute = APIRouter()
 
 
-@QueryRoute.post("/", response_model=ApiResponse)
+@QueryRoute.post("/", response_model=ApiResponse, summary="Save a query")
 async def save_query(
         post_queries: SaveQueryRequest,
         db:AsyncSession = Depends(get_db),
@@ -45,7 +45,7 @@ async def save_query(
 
 
 
-@QueryRoute.post("/execute")
+@QueryRoute.post("/execute", summary="Run a query")
 async def execute_query(
     query_id: int,
     db: AsyncSession = Depends(get_db),
@@ -67,7 +67,7 @@ async def execute_query(
 
 
 
-@QueryRoute.get("/insights/{id}", response_model=ApiResponse)
+@QueryRoute.get("/insights/{id}", response_model=ApiResponse, summary="Get insights for an existing query")
 async def get_insights(
     id: int,
     use_web:bool=False,
@@ -101,7 +101,7 @@ async def get_insights(
 
 
 
-@QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse)
+@QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
 async def link_query_to_dashboard(
     query_id: int,
     dashboard_id: int,
@@ -134,7 +134,7 @@ async def link_query_to_dashboard(
 
 
 
-@QueryRoute.get("/fetch-database-queries/{database_id}")
+@QueryRoute.get("/fetch-database-queries/{database_id}", summary="Fetch all queries associated with a database.")
 async def fetch_database_queries(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         queries = await QueryController.fetch_database_queries(database_id, user, db)
@@ -143,7 +143,7 @@ async def fetch_database_queries(database_id:int, user:User=Depends(get_current_
         return exc
 
     
-@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse)
+@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of dashboards for current user")
 async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         queries_count = await QueryController.get_queries_count(database_id, user, db)
@@ -156,7 +156,7 @@ async def get_queries_count(database_id:int, user:User=Depends(get_current_user)
     
 
 
-@QueryRoute.delete("/{id}", response_model=ApiResponse)
+@QueryRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a query")
 async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         success = await QueryController.delete_query(id, user, db)
@@ -181,7 +181,7 @@ async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSess
         )
     
 
-@QueryRoute.put("/", response_model=ApiResponse)
+@QueryRoute.put("/", response_model=ApiResponse, summary="Update a query")
 async def update_query(
     post_queries: UpdateQueryRequest, 
     user:User=Depends(get_current_user), 

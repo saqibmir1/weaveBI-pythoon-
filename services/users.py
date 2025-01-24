@@ -3,7 +3,9 @@ from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
-from models.models import User, Database, Query
+from models.users import User
+from models.databases import Database
+from models.queries import Query
 from schemas.users import UserCreate, UserUpdate
 from passlib.context import CryptContext
 from utils.logger import logger

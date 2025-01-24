@@ -16,6 +16,7 @@ class DashboardCreate(BaseModel):
     name: str
     description: Optional[str] = None
     db_id: int
+    tags: Optional[List[str]] = None
 
 
 

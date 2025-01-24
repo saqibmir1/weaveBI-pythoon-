@@ -2,28 +2,29 @@ from fastapi import HTTPException, status
 from sqlalchemy import create_engine, select, text, update, func, insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.models import Database, Query, User, Dashboard, dashboard_queries
-from typing import List
-from schemas.queries import  SaveQueryRequest, UpdateQueryRequest
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers.string import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain_core.messages import SystemMessage
-from utils.logger import logger
-from utils.user_queries import  result_to_json_updated
-from config.llm_config import settings as llm_settings
-import os, yaml, json
 from nemoguardrails import RailsConfig
 from nemoguardrails.integrations.langchain.runnable_rails import RunnableRails
 import nest_asyncio
 from config import llm_config
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import os, yaml, json
+
+from utils.logger import logger
+from utils.user_queries import  result_to_json_updated
+from config.llm_config import settings as llm_settings
+from models.databases import Database
+from models.queries import Query
+from models.users import User
+from models.dashboards import Dashboard, dashboard_queries
+from schemas.queries import  SaveQueryRequest, UpdateQueryRequest
 
 os.environ["OPENAI_API_KEY"] = llm_settings.api_key
 model = llm_config.settings.model
-
-
 nest_asyncio.apply()
 config = RailsConfig.from_path("guardrails")
 guard_rail = RunnableRails(config=config)
@@ -34,7 +35,6 @@ class QueryService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    
     
 
     async def save_queries(self, post_queries: SaveQueryRequest, user: User):
@@ -63,10 +63,7 @@ class QueryService:
                 },
             ) 
         
-
-
-
-            
+      
     async def execute_query(self, query_id, user: User):
 
         # get query:
@@ -173,8 +170,6 @@ class QueryService:
 
             logger.info(f'Output stored in db')
 
-
-
             # return api response
             return {
                 "success": True,
@@ -191,10 +186,7 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occured while executing query"
             )
-        
-
-
-
+    
 
     async def get_insights(self, query_id: int, use_web: bool, custom_instructions:str | None) -> str:
         try:
@@ -327,7 +319,6 @@ class QueryService:
             )
 
 
-
     async def fetch_database_queries(self,dashboard_id:int,  user: User):
         try:
             result = await self.db.execute(
@@ -357,7 +348,6 @@ class QueryService:
             )
 
 
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
     async def get_queries_count(self,database_id:int,  user: User):
         try:
             query = select(func.count()).select_from(Query).where(Query.db_id == database_id,Query.is_deleted == False)
@@ -371,9 +361,7 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries count."
             )
-
-
-
+        
 
     async def delete_query(self, id:int, user:User):
         try:
@@ -396,7 +384,6 @@ class QueryService:
                 detail="Error occurred while deleting query."
             )
         
-
 
     async def update_query(self, post_queries: UpdateQueryRequest, user: User):
         try:

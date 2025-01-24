@@ -1,19 +1,17 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth.deps import get_current_user, get_db
-from models.models import User
-from schemas.databases import (
-    DbCredentials,
-    UpdatedCredentials,
-)
+from models.users import User
+from schemas.databases import DbCredentials, UpdatedCredentials
 from controllers.databases import DatabaseController
 from schemas.generic_response_models import ApiResponse
 from utils.logger import logger
 
+
 DbRoute = APIRouter()
 
 
-@DbRoute.post("/", response_model=ApiResponse)
+@DbRoute.post("/", response_model=ApiResponse, summary="Save database credentials")
 async def create_database_credentials(
     db_credentials: DbCredentials,
     user: User = Depends(get_current_user),
@@ -23,21 +21,23 @@ async def create_database_credentials(
         db_credentials, user, db
     )
     logger.info(
-        f"DbRoute->create_new_db_credentials: New database added to {user.id=}."
+        f'[DbRoute->create-new_db_credentials] New database credentaials saved for user_id {user.id}]'
     )
     return ApiResponse(
         message="Schema generated successfully",
         success=True
     )
 
-@DbRoute.put("/test-connection", response_model=ApiResponse)
+@DbRoute.put("/test-connection", response_model=ApiResponse, summary="Test a database connection")
 async def test_connection(db_credentials:DbCredentials):
     response = await DatabaseController.test_connection(db_credentials)
     if response:
+        logger.info(f'[DbRoute->test_connection] Database connection successful.')
         return ApiResponse(
             success=True,
             message="Connection is OK."
         )
+    logger.warning('[DbRoute->test_connection] Database connection failed.')
     return ApiResponse(
         success=False,
         message="Couldn't connect to database."
@@ -46,7 +46,7 @@ async def test_connection(db_credentials:DbCredentials):
 
 
 
-@DbRoute.get("/")
+@DbRoute.get("/", summary="Get all databases of current user")
 async def get_user_databases(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
@@ -58,7 +58,7 @@ async def get_user_databases(
     }
 
 
-@DbRoute.get("/count", response_model=ApiResponse)
+@DbRoute.get("/count", response_model=ApiResponse, summary="Get count of all user databases")
 async def get_database_count(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
@@ -69,7 +69,7 @@ async def get_database_count(
         data={"count": user_databases_count},
     )
 
-@DbRoute.put("/")
+@DbRoute.put("/", summary="Update database credentials")
 async def update_database_credentials(
     updated_credentials: UpdatedCredentials,
     user: User = Depends(get_current_user),
@@ -85,7 +85,7 @@ async def update_database_credentials(
 
 
 
-@DbRoute.delete("/{id}", response_model=ApiResponse)
+@DbRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a database")
 async def delete_database_credentials(
     id: int,
     user: User = Depends(get_current_user),

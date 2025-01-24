@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.models import User
+from models.users import User
 from services.dashboards import DashboardService
-from schemas.dashboards import DashboardCreate, DashboardUpdate , PostQueriesRequest, UpdateQueriesRequest
+from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
 
 
 
@@ -54,3 +54,7 @@ class DashboardController:
     async def update_dashboard_layout( layout:UpdateQueriesRequest, user:User, db:AsyncSession):
           dashboard_service = DashboardService(db)
           return await dashboard_service.update_dashboard_layout(layout, user)
+    
+    async def get_dashboards_by_tags(tags, user:User, db:AsyncSession):
+          dashboard_service = DashboardService(db)
+          return await dashboard_service.get_dashboards_by_tags(tags, user)

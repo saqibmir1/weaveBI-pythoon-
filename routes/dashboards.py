@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
-from auth.deps import get_current_user, get_db
-from models.models import User
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from auth.deps import get_current_user, get_db
+from models.users import User
 from controllers.dashboards import DashboardController
 from utils.logger import logger
 from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesRequest
 from schemas.generic_response_models import  ApiResponse
-
+from typing import List
 
 
 DashboardRoute = APIRouter()
 
 
-@DashboardRoute.post("/", response_model=ApiResponse)
+@DashboardRoute.post("/", response_model=ApiResponse, summary="Create a dashboard")
 async def create_dashboard(
     dashboard_data: DashboardCreate,
     db: AsyncSession = Depends(get_db),
@@ -50,7 +50,7 @@ async def create_dashboard(
 
 
 
-@DashboardRoute.get("/", response_model=ApiResponse)
+@DashboardRoute.get("/", response_model=ApiResponse, summary="Get all dashboards")
 async def get_dashboards(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -72,7 +72,24 @@ async def get_dashboards(
         )
     
 
-@DashboardRoute.get("/count", response_model=ApiResponse)
+
+@DashboardRoute.get("/by-tags", summary="Get dashboards filtered by tags")
+async def get_dashboards_by_tags(
+    tags: List[str] = Query(None),  # Use Query for multiple tag parameters
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        user_dashboards = await DashboardController.get_dashboards_by_tags(tags, user, db)
+        return user_dashboards
+    except Exception as exc:
+        logger.error(f"[DashboardRoute->get_dashboards_by_tags] Unexpected error - {exc}")
+        return None
+
+
+    
+
+@DashboardRoute.get("/count", response_model=ApiResponse, summary="Get count of all dashboards")
 async def get_dashboards_count(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -96,7 +113,7 @@ async def get_dashboards_count(
 
 
 
-@DashboardRoute.get("/dashboard/{id}")
+@DashboardRoute.get("/dashboard/{id}", summary="Get a particular dashboard info")
 async def get_dashboard(
     id: int,
     user: User = Depends(get_current_user),
@@ -123,7 +140,7 @@ async def get_dashboard(
 
 
 
-@DashboardRoute.get("/queries/{dashboard_id}", response_model=ApiResponse)
+@DashboardRoute.get("/queries/{dashboard_id}", response_model=ApiResponse, summary="Get all queries associated with a dashboard")
 async def get_dashboard_queries(
     dashboard_id: int,
     user: User = Depends(get_current_user),
@@ -146,7 +163,7 @@ async def get_dashboard_queries(
 
 
 
-@DashboardRoute.delete("/{id}", response_model=ApiResponse)
+@DashboardRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a dashboard")
 async def delete_dashboard(
     id: int,
     user: User = Depends(get_current_user),
@@ -179,7 +196,7 @@ async def delete_dashboard(
 
 
 
-@DashboardRoute.put("/", response_model=ApiResponse)
+@DashboardRoute.put("/", response_model=ApiResponse, summary="Update a dashboard")
 async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
         updated_dashboard_info = await DashboardController.update_dashboard(updated_dashboard, user, db)
@@ -225,7 +242,7 @@ async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(
 
 
 
-@DashboardRoute.get("/refresh/{id}", response_model=ApiResponse)
+@DashboardRoute.get("/refresh/{id}", response_model=ApiResponse, summary="Re-execute all queries in a dashboard parallely")
 async def execute_dashboard_queries(
     id:int,
     db:AsyncSession=Depends(get_db),
@@ -245,7 +262,7 @@ async def execute_dashboard_queries(
         )
 
 
-@DashboardRoute.get("/fetch-data/{id}", response_model=ApiResponse)
+@DashboardRoute.get("/fetch-data/{id}", response_model=ApiResponse, summary="Fetch dashboard data (queries, layout, etc)")
 async def fetch_dashboard_data(
     id:int,
     db:AsyncSession=Depends(get_db),
@@ -268,7 +285,7 @@ async def fetch_dashboard_data(
 
 
 
-@DashboardRoute.patch("/dashboard-query-layout", response_model=ApiResponse)
+@DashboardRoute.patch("/dashboard-query-layout", response_model=ApiResponse, summary="Update dashboard layout")
 async def update_dashboard_layout(
     layout: UpdateQueriesRequest,
     current_user: User = Depends(get_current_user),
@@ -292,6 +309,9 @@ async def update_dashboard_layout(
             message="An error occurred while updating dashboard layout.",
             error=str(exc)
         )
+    
+
+
 
 # @DashboardRoute.put("/queries", response_model=ApiResponse)
 # async def update_queries(

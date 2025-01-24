@@ -3,7 +3,9 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, inspect, select, func
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
 from fastapi import status
-from models.models import Database, User, Query
+from models.databases import Database
+from models.users import User
+from models.queries import Query
 from schemas.databases import DbCredentials, UpdatedCredentials
 from utils.logger import logger
 from utils.user_queries import get_connection_string
