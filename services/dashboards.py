@@ -3,6 +3,7 @@ import json
 import yaml
 import asyncio
 
+from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy import select, update, create_engine, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,7 +47,8 @@ class DashboardService:
         existing_dashboard_query = await self.db.execute(
             select(Dashboard).where(
                 Dashboard.name == dashboard_data.name,
-                Dashboard.user_id == user.id
+                Dashboard.user_id == user.id,
+                Dashboard.is_deleted == False
             )
         )
         existing_dashboard = existing_dashboard_query.scalars().first()
@@ -515,5 +517,24 @@ class DashboardService:
                 detail="Error occurred while fetching queries."
             )
         
+
+    async def get_dashboards_by_tags(self, tags: List[str], user: User):
+        # If tags is empty or None, return all dashboards
+        if not tags:
+            return await self.get_dashboards(user)
+        
+        query = select(Dashboard).join(dashboard_tags).join(Tag).where(
+            (Dashboard.user_id == user.id) & 
+            (Dashboard.is_deleted == False) & 
+            (Tag.name.in_(tags))
+        ).distinct()
+        
+        result = await self.db.execute(query)
+        dashboards = result.scalars().all()
+        
+        logger.info(f"Retrieved dashboards by tags for user {user.id}")
+        return dashboards
+
+
 
         
