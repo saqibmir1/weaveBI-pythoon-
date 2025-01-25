@@ -33,11 +33,12 @@ class DatabaseService:
                 scheme[table_name] = columns
 
             engine.dispose()
+            logger.info('Connected to database and retrieved schema')
             return scheme
 
         except Exception as e:
             logger.error(
-                f"DaoDBCredentilsServices->connect_to_database->connect_to_db_and_get_scheme: {user.id=} couuldn't connect to database. Reason {e}."
+                f"{user.id=} couuldn't connect to database. Reason {e}."
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -72,7 +73,7 @@ class DatabaseService:
             await self.db.refresh(user)
             return str(schema)
         logger.error(
-            f"DaoDBCredentilsServices->connect_to_database: {user.id=} couldn't connect to database."
+            f"{user.id=} couldn't connect to database."
         )
         raise HTTPException(
             status_code=status.HTTP_418_IM_A_TEAPOT,
@@ -98,6 +99,7 @@ class DatabaseService:
                 scheme[table_name] = columns
 
             engine.dispose()
+            logger.info('Connection tested successfully')
             return True
         except Exception as e:
             return False
@@ -126,7 +128,7 @@ class DatabaseService:
             for db in databases_from_db
         ]
         logger.info(
-            f"DaoDBCredentilsServices->get_users_databases: Retrieved all databases of {user.id=}."
+            f"Retrieved all databases of {user.id=}."
         )
         return databases
     
@@ -140,6 +142,7 @@ class DatabaseService:
 
             result = await self.db.execute(query)
             count = result.scalar() 
+            logger.info('Retrieved databases count')
             return count
             
         except Exception as exc:
@@ -181,7 +184,7 @@ class DatabaseService:
                 await self.db.commit()
                 await self.db.refresh(user)
                 logger.info(
-                    f"DaoDBCredentilsServices->update_db_credentials_and_get_scheme: Db_credentials updated for {user.id=}"
+                    f"Db_credentials updated for {user.id=}"
                 )
                 updated_credentials = {
                     "db_provider": updated_credentials.db_provider,
@@ -195,7 +198,7 @@ class DatabaseService:
                 
                 return updated_credentials
             logger.error(
-                f"DaoDBCredentilsServices->update_db_credentials_and_get_scheme: {user.id=} couldn't connect to database with new credentials."
+                f"{user.id=} couldn't connect to database with new credentials."
             )
             raise HTTPException(
                 status_code=status.HTTP_418_IM_A_TEAPOT,
@@ -208,7 +211,7 @@ class DatabaseService:
             )
 
         logger.error(
-            f"DaoDBCredentilsServices->update_db_credentials_and_get_scheme: database credentials with id: {updated_credentials.db_id} not found for {user.id=}."
+            f"database credentials with id: {updated_credentials.db_id} not found for {user.id=}."
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -234,7 +237,7 @@ class DatabaseService:
 
         if not db_credential:
             logger.error(
-                f"DaoDBCredentilsServices->soft_delete_db: Database with {id=} not found for {user.id=}."
+                f"Database with {id=} not found for {user.id=}."
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -249,5 +252,5 @@ class DatabaseService:
         await self.db.refresh(user)
 
         logger.info(
-            f"DaoDBCredentilsServices->soft_delete_db: Soft deleted database with {id=} for {user.id=}."
+            f"Soft deleted database with {id=} for {user.id=}."
         )

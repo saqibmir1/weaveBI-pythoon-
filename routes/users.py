@@ -7,7 +7,6 @@ from schemas.users import Token, UserCreate, Token, UserUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.users import UserController
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.logger import logger
 
 
 UserRouter = APIRouter()

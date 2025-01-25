@@ -5,7 +5,6 @@ from models.users import User
 from schemas.databases import DbCredentials, UpdatedCredentials
 from controllers.databases import DatabaseController
 from schemas.generic_response_models import ApiResponse
-from utils.logger import logger
 
 
 DbRoute = APIRouter()
@@ -20,9 +19,7 @@ async def create_database_credentials(
     schema = await DatabaseController.save_credentials_and_get_scheme(
         db_credentials, user, db
     )
-    logger.info(
-        f'[DbRoute->create-new_db_credentials] New database credentaials saved for user_id {user.id}]'
-    )
+
     return ApiResponse(
         message="Schema generated successfully",
         success=True
@@ -32,12 +29,10 @@ async def create_database_credentials(
 async def test_connection(db_credentials:DbCredentials):
     response = await DatabaseController.test_connection(db_credentials)
     if response:
-        logger.info(f'[DbRoute->test_connection] Database connection successful.')
         return ApiResponse(
             success=True,
             message="Connection is OK."
         )
-    logger.warning('[DbRoute->test_connection] Database connection failed.')
     return ApiResponse(
         success=False,
         message="Couldn't connect to database."
@@ -51,7 +46,6 @@ async def get_user_databases(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     user_databases = await DatabaseController.get_user_dbs(user, db)
-    logger.info(f"DbRoute->get_user_dbs: Retrieved all databases of {user.id=}.")
     return {
      
         "databases": user_databases
@@ -78,7 +72,6 @@ async def update_database_credentials(
     updated_db_credentials_schema = await DatabaseController.update_db_credentials(
         updated_credentials, user, db
     )
-    logger.info(f"DbRoute->get_user_dbs: Retrieved all databases of {user.id=}.")
     return {
         "data": updated_db_credentials_schema
     }
@@ -92,9 +85,6 @@ async def delete_database_credentials(
     db: AsyncSession = Depends(get_db),
 ):
     await DatabaseController.delete_db_credentials(id, user, db)
-    logger.info(
-        f"DbRoute->delete_db_credentials: Deleted database {id=} for {user.id=}."
-    )
     return ApiResponse(
         success=True,
         message=f"Deleted database credentials with {id=}.",
