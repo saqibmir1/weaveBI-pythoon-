@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.deps import get_current_user, get_db
 from models.users import User
 from controllers.dashboards import DashboardController
-from utils.logger import logger
 from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesRequest
 from schemas.generic_response_models import  ApiResponse
 from typing import List
@@ -24,21 +23,18 @@ async def create_dashboard(
             db=db,
             user=user
         )
-        logger.info("DashboardRoute->create_dashboard: Dashboard created successfully.")
         return ApiResponse(
             success=True,
             message="Dashboard created successfully.",
             data={"dashboard": dashboard}
         )
     except HTTPException as http_exc:
-        logger.error(f"DashboardRoute->create_dashboard: {http_exc.detail}")
         return ApiResponse(
             success=False,
             message="Failed to create dashboard.",
             error=http_exc.detail
         )
     except Exception as exc:
-        logger.error(f"DashboardRoute->create_dashboard: Unexpected error - {exc}")
         return ApiResponse(
             success=False,
             message="An unexpected error occurred.",
@@ -57,14 +53,12 @@ async def get_dashboards(
 ):
     try:
         user_dashboards = await DashboardController.get_dashboards(user, db)
-        logger.info("DashboardRoute->get_dashboards: Dashboards retrieved successfully.")
         return ApiResponse(
             success=True,
             message="Dashboards retrieved successfully.",
             data={"dashboards": user_dashboards}
         )
     except Exception as exc:
-        logger.error(f"DashboardRoute->get_dashboards: Unexpected error - {exc}")
         return ApiResponse(
             success=False,
             message="An unexpected error occurred while retrieving dashboards.",
@@ -83,7 +77,6 @@ async def get_dashboards_by_tags(
         user_dashboards = await DashboardController.get_dashboards_by_tags(tags, user, db)
         return user_dashboards
     except Exception as exc:
-        logger.error(f"[DashboardRoute->get_dashboards_by_tags] Unexpected error - {exc}")
         return None
 
 
@@ -102,7 +95,6 @@ async def get_dashboards_count(
             data={"count": user_dashboards_count}
         )
     except Exception as exc:
-        logger.error(f"DashboardRoute->get_dashboards_count: Unexpected error - {exc}")
         return ApiResponse(
             success=False,
             message="An unexpected error occurred while retrieving dashboards.",
@@ -121,17 +113,14 @@ async def get_dashboard(
 ):
     try:
         dashboard = await DashboardController.get_dashboard(id, user, db)
-        logger.info(f"DashboardRoute->get_dashboard: Dashboard with ID {id} retrieved successfully.")
         return dashboard
     except HTTPException as http_exc:
-        logger.warning(f"DashboardRoute->get_dashboard: {http_exc.detail}")
         return ApiResponse(
             success=False,
             message=http_exc.detail,
             error=str(http_exc)
         )
     except Exception as exc:
-        logger.error(f"DashboardRoute->get_dashboard: Unexpected error - {exc}")
         return ApiResponse(
             success=False,
             message="An unexpected error occurred while retrieving the dashboard.",
@@ -185,7 +174,6 @@ async def delete_dashboard(
         )
 
     except Exception as exc:
-        logger.error(f"DashboardRoute->delete_dashboard: Unexpected error - {exc}")
         return ApiResponse(
             success=False,
             message="Error occurred while deleting the dashboard.",
@@ -227,13 +215,11 @@ async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(
 #             message=f'Dashboard with ID {post_queries.dashboard_id} not found',
 #             error="Unable to add queries to dashboard"
 #             )
-#         logger.info(f'Dashboardroute->post_queries_for_dashboard: Queries submitted')
 #         return ApiResponse(
 #         success=True,
 #         message=f'Queries submitted successfully.',
 #         )
 #     except Exception as exc:
-#         logger.error(f"DashboardRoute->post_queries_for_dashboard: Error - {exc}")
 #         return ApiResponse(
 #             success=False,
 #             message="An error occurred while adding queries to the dashboard.",
@@ -327,13 +313,11 @@ async def update_dashboard_layout(
 #                 message="Failed to update queries.",
 #                 error="Unable to update queries for the dashboard."
 #             )
-#         logger.info(f'DashboardRoute->update_queries: Queries updated successfully')
 #         return ApiResponse(
 #             success=True,
 #             message="Queries updated successfully."
 #         )
 #     except Exception as exc:
-#         logger.error(f"DashboardRoute->update_queries: Error - {exc}")
 #         return ApiResponse(
 #             success=False,
 #             message="An error occurred while updating queries.",

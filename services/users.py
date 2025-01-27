@@ -35,7 +35,7 @@ class UserService:
 
     async def create_new_users(self,user:UserCreate):
         if await self.get_user_by_email(user.email):
-            logger.error(f'UserService->create_new_users {user.email=} already exists')
+            logger.error(f'{user.email=} already exists')
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="User with email: {user.email} already exists"
@@ -50,7 +50,7 @@ class UserService:
         self.db.add(user_db)
         await self.db.commit()
         await self.db.refresh(user_db)
-        logger.info(f'UserService->create_new_users: New user {user.name} added to db successfully')
+        logger.info(f'New user {user.name} added to db successfully')
         return user_db
 
 
@@ -80,7 +80,7 @@ class UserService:
             await self.db.execute(
                 update(User).where(User.id == user_id).values(is_deleted=True)
             )
-            logger.info(f"DaoUserService->delete_user: user {user_id} soft deleted")
+            logger.info(f"user {user_id} soft deleted")
 
             # soft delete  records in dbs_credentials table
             await self.db.execute(update(Database).where(Database.user_id == user_id).values(is_deleted=True))
@@ -95,7 +95,7 @@ class UserService:
 
         except Exception as e:
             logger.error(
-                f"DaoUserService->delete_user: Error deleting user {user_id} - {str(e)}"
+                f"Error deleting user {user_id} - {str(e)}"
             )
             return False
 
@@ -108,6 +108,7 @@ class UserService:
             redis_client = Redis(decode_responses=True)
             await redis_client.setex(f"otp:{email}", 300, otp)
             await redis_client.close()
+            logger.info(f"OTP generated for {email}")
 
             subject = "Your OTP for Password Reset"
             body = f"""
@@ -139,6 +140,7 @@ class UserService:
                 password=sender_password
           
             )
+            logger.info(f"OTP sent to {email}")
 
             return otp
         
@@ -154,5 +156,6 @@ class UserService:
             if user:
                 user.password = hash_helper.encrypt(new_password)
                 await self.db.commit()
+                logger.info(f"Password reset for {email}")
                 return True
         return False

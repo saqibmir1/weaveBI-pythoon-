@@ -6,7 +6,6 @@ from models.users import User
 from schemas.users import UserCreate, UserUpdate
 from services.users import UserService
 from passlib.context import CryptContext
-from utils.logger import logger
 
 
 hash_helper = CryptContext(schemes=["bcrypt"])
@@ -48,9 +47,7 @@ class UserController:
             success = await user_service.delete_user(user.id)
             if success:
                 return {"success": True, "message": "user deleted successfully"}
-        logger.error(
-            f"UserController->delete_user: {user.id=} User id not found in the database"
-        )
+   
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={

@@ -132,7 +132,7 @@ class DashboardService:
                 for dashboard in dashboards_from_db
             ]
         except Exception as exc:
-            logger.error(f"DashboardService->get_dashboards: Error retrieving dashboards - {exc}")
+            logger.error(f"Error retrieving dashboards - {exc}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving dashboards."
@@ -150,7 +150,7 @@ class DashboardService:
             return count
             
         except Exception as exc:
-            logger.error(f"DashboardService->get_dashboards: Error retrieving dashboards - {exc}")
+            logger.error(f"Error retrieving dashboards - {exc}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving dashboards."
@@ -189,7 +189,7 @@ class DashboardService:
 
         except Exception as e:
             logger.error(
-                f"DashboardService->delete_dashboard: Error deleting dashboard {dashboard_id} - {str(e)}")
+                f"Error deleting dashboard {dashboard_id} - {str(e)}")
             await self.db.rollback()
             return False
         
@@ -441,7 +441,7 @@ class DashboardService:
                 for query in queries
             ]
         except Exception as e:
-            logger.error(f"DashboardService->fetch_database_queries: Error fetching queries - {str(e)}")
+            logger.error(f"Error fetching queries - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
@@ -481,7 +481,7 @@ class DashboardService:
 
             return dashboard_data
         except Exception as e:
-            logger.error(f"DashboardService->get_dashboard: Error fetching dashboard - {str(e)}")
+            logger.error(f"Error fetching dashboard - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching dashboard."
@@ -511,7 +511,7 @@ class DashboardService:
                 for query in queries
             ]
         except Exception as e:
-            logger.error(f"DashboardService->get_dashboard_queries: Error fetching queries - {str(e)}")
+            logger.error(f"Error fetching queries - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."

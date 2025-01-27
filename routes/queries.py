@@ -6,8 +6,6 @@ from schemas.queries import UserQueryRequest, QueryInsightsRequest, SaveQueryReq
 from schemas.generic_response_models import ApiResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.queries import QueryController
-from typing import List
-from utils.logger import logger
 
 
 QueryRoute = APIRouter()
@@ -31,7 +29,6 @@ async def save_query(
             message="Query saved successfully."
         )
     except Exception as e:
-        logger.error(f"QueryRoute->save_queries: {user.id=} couldn't save query. Reason {e}.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -58,7 +55,6 @@ async def execute_query(
         
     
     except Exception as e:
-        logger.error(f"QueryRoute->execute_query: {user.id=} Error occured while executing query. Reason: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error occured while executing query"
@@ -120,7 +116,6 @@ async def link_query_to_dashboard(
             message="Query linked to dashboard successfully."
         )
     except Exception as e:
-        logger.error(f"QueryRoute->link_query_to_dashboard: {user.id=} couldn't link query to dashboard. Reason {e}.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -170,7 +165,6 @@ async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSess
             message="Query deleted successfully."
         )
     except Exception as e:
-        logger.error(f"QueryRoute->delete_query: {user.id=} couldn't delete query. Reason {e}.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -195,7 +189,6 @@ async def update_query(
         )
 
     except Exception as exc:
-        logger.error(f"QueryRoute->update_query: {user.id=} couldn't update query. Reason {exc}.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={

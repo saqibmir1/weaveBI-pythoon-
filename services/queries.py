@@ -49,11 +49,11 @@ class QueryService:
             self.db.add(new_query)
             await self.db.commit()
             await self.db.refresh(new_query)
+            logger.info('Query saved in db')
             return True
         
         except Exception as e:
-            logger.error(f"QueryService->save_queries: Failed to save query for user_id={user.id}, db_id={post_queries.db_id}, query_name={post_queries.query_name}. Reason: {e}.")
-            logger.error(f"QueryService->save_queries: user.id={user.id} couldn't save queries. Reason: {e}.")
+            logger.error(f"Failed to save query for user_id={user.id}, db_id={post_queries.db_id}, query_name={post_queries.query_name}. Reason: {e}.")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -181,7 +181,7 @@ class QueryService:
             }
         
         except Exception as e:
-            logger.error(f"QueryService->execute_query: {user.id=} Error occured while executing query. Reason: {e}")
+            logger.error(f"{user.id=} Error occured while executing query. Reason: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occured while executing query"
@@ -341,7 +341,7 @@ class QueryService:
                 for query in queries
             ]
         except Exception as e:
-            logger.error(f"DashboardService->fetch_database_queries: Error fetching queries - {str(e)}")
+            logger.error(f"Error fetching queries - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
@@ -356,7 +356,7 @@ class QueryService:
             count = result.scalar() 
             return count
         except Exception as e:
-            logger.error(f'DashboardService->get_queries_count: Error fetching count - {str(e)}')
+            logger.error(f'Error fetching count - {str(e)}')
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries count."
@@ -369,14 +369,14 @@ class QueryService:
             await self.db.execute(
                 update(Query).where((Query.id == id) & (Query.user_id == user.id)).values(is_deleted=True)
             )
-            logger.info(f"QueryService->delete_query: query {id} soft deleted")
+            logger.info(f" query {id} soft deleted")
 
             await self.db.commit()
             return True
 
         except Exception as e:
             logger.error(
-                f"QueryService->delete_query: Error deleting query {id} - {str(e)}"
+                f"Error deleting query {id} - {str(e)}"
             )
             await self.db.rollback()
             raise HTTPException(
@@ -390,7 +390,7 @@ class QueryService:
             query = await self.db.execute(select(Query).where((Query.id == post_queries.query_id) & (Query.user_id == user.id) & (Query.is_deleted == False)))
             query = query.scalar_one_or_none()
             if not query:
-                logger.error(f"QueryService->update_query: Query with id {post_queries.id} not found or deleted")
+                logger.error(f"Query with id {post_queries.id} not found or deleted")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Query with id {post_queries.id} not found"
@@ -401,11 +401,11 @@ class QueryService:
 
             await self.db.commit()
             await self.db.refresh(query)
-            logger.info(f"QueryService->update_query: Query {post_queries.query_id} updated successfully")
+            logger.info(f"Query {post_queries.query_id} updated successfully")
             
         
         except Exception as e:
-            logger.error(f"QueryService->update_query: Error updating query {post_queries.id} - {str(e)}")
+            logger.error(f"Error updating query {post_queries.id} - {str(e)}")
             await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
