@@ -20,7 +20,7 @@ jobs:
 
       - name: Deploy to VM
         run: |
-          ssh -o StrictHostKeyChecking=no username@your-vm-ip << 'EOF'
+          ssh -o StrictHostKeyChecking=no ubuntu@103.119.170.144 << 'EOF'
             cd weaveBI
 
             source .venv/bin/activate 
