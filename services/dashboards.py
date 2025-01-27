@@ -99,6 +99,7 @@ class DashboardService:
                 await self.db.refresh(new_dashboard)
                 
             logger.info(f"Tags saved in db.")
+            return dashboard_data
 
         except Exception as exc:
             await self.db.rollback()
