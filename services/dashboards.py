@@ -95,6 +95,9 @@ class DashboardService:
 
                 # link dashboard_id -> tag_id
                 await self.db.execute(dashboard_tags.insert().values(dashboard_id=new_dashboard.id, tag_id=tag_id))
+                await self.db.commit()
+                await self.db.refresh(new_dashboard)
+                
             logger.info(f"Tags saved in db.")
 
         except Exception as exc:

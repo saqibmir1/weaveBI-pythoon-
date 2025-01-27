@@ -102,6 +102,7 @@ class DatabaseService:
             logger.info('Connection tested successfully')
             return True
         except Exception as e:
+            logger.error(f'Error while connecting to database: Reason - {e}')
             return False
 
 
