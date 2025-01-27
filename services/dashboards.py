@@ -95,7 +95,11 @@ class DashboardService:
 
                 # link dashboard_id -> tag_id
                 await self.db.execute(dashboard_tags.insert().values(dashboard_id=new_dashboard.id, tag_id=tag_id))
+                await self.db.commit()
+                await self.db.refresh(new_dashboard)
+                
             logger.info(f"Tags saved in db.")
+            return dashboard_data
 
         except Exception as exc:
             await self.db.rollback()

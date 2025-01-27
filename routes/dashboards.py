@@ -18,7 +18,7 @@ async def create_dashboard(
     user: User = Depends(get_current_user)
 ):
     try:
-        dashboard = await DashboardController.create_dashboard(
+        dashboard_data = await DashboardController.create_dashboard(
             dashboard_data=dashboard_data,
             db=db,
             user=user
@@ -26,14 +26,9 @@ async def create_dashboard(
         return ApiResponse(
             success=True,
             message="Dashboard created successfully.",
-            data={"dashboard": dashboard}
+            data={"dashboard": dashboard_data}
         )
-    except HTTPException as http_exc:
-        return ApiResponse(
-            success=False,
-            message="Failed to create dashboard.",
-            error=http_exc.detail
-        )
+
     except Exception as exc:
         return ApiResponse(
             success=False,
