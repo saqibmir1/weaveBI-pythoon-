@@ -227,16 +227,13 @@ class DatabaseService:
         )
 
     async def soft_delete_db(self, id: int, user: User):
-        result = await self.db.execute(
-            select(Database).where(
-                ((Database.id == id))
-            )
-        )
-        result2 = await self.db.execute(select(Query).where(Query.db_id == id))
-        db_credential = result.scalar_one_or_none()
-        queries = result2.scalars().all()
+        database = await self.db.execute(select(Database).where(((Database.id == id))))
+        database = database.scalar_one_or_none()
 
-        if not db_credential:
+        queries = await self.db.execute(select(Query).where(Query.db_id == id))
+        queries = queries.scalars().all()
+
+        if not database:
             logger.error(
                 f"Database with {id=} not found for {user.id=}."
             )
@@ -246,7 +243,7 @@ class DatabaseService:
             )
 
         # soft delete here (database and its queries)
-        db_credential.is_deleted = True
+        database.is_deleted = True
         for query in queries:
             query.is_deleted = True
         await self.db.commit()
