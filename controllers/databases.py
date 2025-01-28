@@ -12,9 +12,9 @@ class DatabaseController:
         return await daoDbCredentials.connect_to_database(user, db_credentials)
 
 
-    async def get_user_dbs(user: User, db: AsyncSession) -> list:
+    async def get_user_dbs(user: User, db: AsyncSession, page:int, limit:int):
         daoDbCredentials = DatabaseService(db=db)
-        return await daoDbCredentials.get_users_databases(user)
+        return await daoDbCredentials.get_users_databases(user, page, limit)
     
     
     async def get_dbs_count(user: User, db: AsyncSession):

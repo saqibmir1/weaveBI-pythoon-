@@ -43,12 +43,19 @@ async def test_connection(db_credentials:DbCredentials):
 
 @DbRoute.get("/", summary="Get all databases of current user")
 async def get_user_databases(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit: int = 10
 ):
-    user_databases = await DatabaseController.get_user_dbs(user, db)
+    user_databases, total_count = await DatabaseController.get_user_dbs(user, db, page, limit)
     return {
      
-        "databases": user_databases
+        "databases": user_databases,
+        "total_count": total_count,
+        "page": page,
+        "limit": limit
+
     }
 
 
