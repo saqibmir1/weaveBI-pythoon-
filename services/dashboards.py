@@ -110,20 +110,30 @@ class DashboardService:
             )
 
 
-    async def get_dashboards(self, user: User):
+    async def get_dashboards(self, user: User, page: int, limit: int):
     # get all dashboards
         try:
-            # Query dashboards for the user that are not deleted
-            result = await self.db.execute(
-                select(Dashboard).where(
+            offset = (page - 1) * limit
+
+            
+            query = select(Dashboard).where(
+                (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
+            ).limit(limit).offset(offset)
+
+            result = await self.db.execute(query)
+            dashboards_from_db = result.scalars().all()
+
+            # Get the total count of dashboards to calculate pagination metadata
+            total_count_result = await self.db.execute(
+                select(func.count()).where(
                     (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
                 )
             )
-            dashboards_from_db = result.scalars().all()
-            logger.info(f"Retrieved all dashboards from the DB for user {user.id}")
+            total_count = total_count_result.rowcount
 
-            
-            return [
+            logger.info(f"Retrieved {len(dashboards_from_db)} dashboards from the DB for user {user.id}")
+
+            dashboards = [
                 {
                     "id": dashboard.id,
                     "name": dashboard.name,
@@ -131,10 +141,12 @@ class DashboardService:
                     "db_id": dashboard.db_id,
                     "created_on": dashboard.created_at,
                     "updated_at": dashboard.updated_at
-                    
                 }
                 for dashboard in dashboards_from_db
             ]
+
+            return dashboards, total_count
+        
         except Exception as exc:
             logger.error(f"Error retrieving dashboards - {exc}")
             raise HTTPException(

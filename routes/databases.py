@@ -25,7 +25,7 @@ async def create_database_credentials(
         success=True
     )
 
-@DbRoute.put("/test-connection", response_model=ApiResponse, summary="Test a database connection")
+@DbRoute.post("/test-connection", response_model=ApiResponse, summary="Test a database connection")
 async def test_connection(db_credentials:DbCredentials):
     response = await DatabaseController.test_connection(db_credentials)
     if response:
