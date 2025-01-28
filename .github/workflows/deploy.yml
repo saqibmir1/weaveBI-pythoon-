@@ -26,9 +26,11 @@ jobs:
 
             source .venv/bin/activate 
 
-            pkill -f 'uv run main' || echo "coudn't pkill uv process for some reason"
+            pkill -f 'uv run main'
 
             git pull origin main
+
+            uv pip install --requirements pyproject.toml
 
             alembic upgrade head
 

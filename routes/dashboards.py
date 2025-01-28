@@ -45,13 +45,20 @@ async def create_dashboard(
 async def get_dashboards(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit:int = 10,
 ):
     try:
-        user_dashboards = await DashboardController.get_dashboards(user, db)
+        user_dashboards, total_count = await DashboardController.get_dashboards(user, db, page, limit)
         return ApiResponse(
             success=True,
             message="Dashboards retrieved successfully.",
-            data={"dashboards": user_dashboards}
+            data={
+                "dashboards": user_dashboards,
+                "total_count": total_count,
+                "page": page,
+                "limit": limit
+            }
         )
     except Exception as exc:
         return ApiResponse(

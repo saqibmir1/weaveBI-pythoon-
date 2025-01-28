@@ -42,7 +42,6 @@ dependencies = [
     "nemoguardrails>=0.11.0",
     "redis>=5.2.1",
     "aiosmtplib>=3.0.2",
-    "fastapi-pagination>=0.12.34",
     "pymysql>=1.1.1",
     "pyproject-toml>=0.1.0",
 ]

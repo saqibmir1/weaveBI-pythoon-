@@ -32,9 +32,9 @@ class QueryController:
     
 
 
-    async def fetch_database_queries(database_id:int, user: User,  db: AsyncSession):
+    async def fetch_database_queries(database_id:int, user: User,  db: AsyncSession, page:int, limit:int):
         dashboard_service = QueryService(db)
-        return await dashboard_service.fetch_database_queries(database_id, user)
+        return await dashboard_service.fetch_database_queries(database_id, user, page, limit)
 
 
     

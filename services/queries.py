@@ -319,27 +319,43 @@ class QueryService:
             )
 
 
-    async def fetch_database_queries(self,dashboard_id:int,  user: User):
+    async def fetch_database_queries(self,dashboard_id:int,  user: User, page:int, limit:int):
         try:
-            result = await self.db.execute(
-                select(Query).where(
-                    (Query.is_deleted == False) & (Query.db_id==dashboard_id) & (Query.user_id==user.id)
-                )
-            )
-            queries = result.scalars().all()
+            offset = (page - 1) * limit
+            
+            # Single query using window function to get both data and count
+            query = select(
+                Query,
+                func.count().over().label('total_count')
+            ).where(
+                (Query.user_id == user.id) & 
+                (Query.is_deleted == False) &
+                (Query.db_id==dashboard_id)
+            ).limit(limit).offset(offset)
+            
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if not rows:
+                return [], 0
+                
+            # Get total count from first row
+            total_count = rows[0].total_count
             logger.info(f"Fetched all queries for user {user.id}")
 
-            return [
+            queries =  [
                 {
-                    "id": query.id,
-                    "query_name": query.query_name,
-                    "query_text": query.query_text,
-                    "output_type": query.output_type,
-                    "created_at": query.created_at,
-                    "updated_at": query.updated_at
+                    "id": row.Query.id,
+                    "query_name": row.Query.query_name,
+                    "query_text": row.Query.query_text,
+                    "output_type": row.Query.output_type,
+                    "created_at": row.Query.created_at,
+                    "updated_at": row.Query.updated_at
                 }
-                for query in queries
+                for row in rows
             ]
+            return queries, total_count
+
         except Exception as e:
             logger.error(f"Error fetching queries - {str(e)}")
             raise HTTPException(

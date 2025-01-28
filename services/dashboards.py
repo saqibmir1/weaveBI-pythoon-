@@ -110,37 +110,47 @@ class DashboardService:
             )
 
 
-    async def get_dashboards(self, user: User):
-    # get all dashboards
+    async def get_dashboards(self, user: User, page: int, limit: int):
         try:
-            # Query dashboards for the user that are not deleted
-            result = await self.db.execute(
-                select(Dashboard).where(
-                    (Dashboard.user_id == user.id) & (Dashboard.is_deleted == False)
-                )
-            )
-            dashboards_from_db = result.scalars().all()
-            logger.info(f"Retrieved all dashboards from the DB for user {user.id}")
-
+            offset = (page - 1) * limit
             
-            return [
+            # Single query using a window function to get both data and count
+            query = select(Dashboard,func.count().over().label('total_count')).where(
+                (Dashboard.user_id == user.id) &
+                (Dashboard.is_deleted == False)).limit(limit).offset(offset)
+            
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if not rows:
+                return [], 0
+                
+            # Extract total count from first row
+            total_count = rows[0].total_count
+            
+            logger.info(f"Retrieved {len(rows)} dashboards from DB for user {user.id}")
+            
+            dashboards = [
                 {
-                    "id": dashboard.id,
-                    "name": dashboard.name,
-                    "description": dashboard.description,
-                    "db_id": dashboard.db_id,
-                    "created_on": dashboard.created_at,
-                    "updated_at": dashboard.updated_at
-                    
+                    "id": row.Dashboard.id,
+                    "name": row.Dashboard.name,
+                    "description": row.Dashboard.description,
+                    "db_id": row.Dashboard.db_id,
+                    "created_on": row.Dashboard.created_at,
+                    "updated_at": row.Dashboard.updated_at
                 }
-                for dashboard in dashboards_from_db
+                for row in rows
             ]
+            
+            return dashboards, total_count
+            
         except Exception as exc:
             logger.error(f"Error retrieving dashboards - {exc}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving dashboards."
             )
+
 
 
 
