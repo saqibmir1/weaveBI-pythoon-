@@ -32,5 +32,6 @@ jobs:
             alembic upgrade head
 
             nohup uv run main.py & 
+            exit
 
           EOF
