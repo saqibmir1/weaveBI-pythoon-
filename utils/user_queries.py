@@ -8,10 +8,15 @@ from decimal import Decimal
 def get_connection_string(db_credentials: DbCredentials | UpdatedCredentials):
     connection_strings = {
         "mysql": f"mysql+pymysql://{db_credentials.db_username}:{db_credentials.db_password}@{db_credentials.db_host}:{db_credentials.db_port}/{db_credentials.db_name}",
+        
         "postgres": f"postgresql+psycopg2://{db_credentials.db_username}:{db_credentials.db_password}@{db_credentials.db_host}:{db_credentials.db_port}/{db_credentials.db_name}",
-        # "sqlite": f"sqlite:///{db_credentials}",
-        # "sqlserver": f"mssql+pyodbc://{db_credentials}:{db_credentials}@{db_credentials}/{db_credentials}?driver=ODBC+Driver+17+for+SQL+Server",
-        # "mariadb": f"mysql+pym-ysql://{db_credentials}:{db_credentials}@{db_credentials}/{db_credentials}",
+        
+        "sqlite": f"sqlite:///{db_credentials.db_name}",
+        
+        "sqlserver": f"mssql+pyodbc://{db_credentials.db_username}:{db_credentials.db_password}@{db_credentials.db_host}:{db_credentials.db_port}/{db_credentials.db_name}?driver=ODBC+Driver+17+for+SQL+Server",
+        
+        "mariadb": f"mysql+pymysql://{db_credentials.db_username}:{db_credentials.db_password}@{db_credentials.db_host}:{db_credentials.db_port}/{db_credentials.db_name}",
+        
     }
 
     if db_credentials.db_provider in connection_strings:

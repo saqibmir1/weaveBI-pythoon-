@@ -279,7 +279,7 @@ class DashboardService:
                     session = Session()
 
                     if sql_query.strip().lower().startswith("select") and "LIMIT" not in sql_query:
-                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 50;'
+                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'     # hard coded limit for now :p
                     query = text(sql_query)
                     result = session.execute(query)
                     query_result = result_to_json_updated(result)

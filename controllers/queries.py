@@ -2,8 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.queries import  QueryInsightsRequest, SaveQueryRequest, UpdateQueryRequest
 from services.queries import QueryService
 from models.users import User
-from typing import List
-
+from schemas.queries import UserQueryRequest
 
 
 class QueryController:
@@ -56,3 +55,8 @@ class QueryController:
     async def update_query(post_queries: UpdateQueryRequest, user: User, db: AsyncSession):
         query_service = QueryService(db=db)
         return await query_service.update_query(post_queries, user)
+        
+
+    async def test_query(query_data: UserQueryRequest , db: AsyncSession, user: User):
+        query_service = QueryService(db=db)
+        return await query_service.test_query(query_data, user)
