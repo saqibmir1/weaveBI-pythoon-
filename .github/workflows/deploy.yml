@@ -3,7 +3,7 @@ name: Deploy Application
 on:
   push:
     branches:
-      - main
+      - main 
 
 jobs:
   deploy:
@@ -11,26 +11,29 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2 
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  
 
       - name: Deploy to VM
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@103.119.170.144 << 'EOF'
-            cd weaveBI
-            source .venv/bin/activate
 
-            pkill -f 'uvicorn main' || echo "Couldn't kill uvicorn process"
+            cd weaveBI
+
+            source .venv/bin/activate 
+
+            pkill -f 'uv run main' || echo "coudn't pkill uv process for some reason"
 
             git pull origin main
 
             alembic upgrade head
 
-            nohup uvicorn main:app --host 0.0.0.0 --port 8080 > /dev/null 2>&1 &
-
+            nohup uv run main.py > /dev/null 2>&1 &
+            
             exit
+
           EOF
