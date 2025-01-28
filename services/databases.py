@@ -1,6 +1,6 @@
 import datetime
 from fastapi import HTTPException
-from sqlalchemy import create_engine, inspect, select, func
+from sqlalchemy import create_engine, inspect, select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
 from fastapi import status
 from models.databases import Database
@@ -13,7 +13,6 @@ from passlib.context import CryptContext
 
 hash_helper = CryptContext(schemes="bcrypt")
 
-
 class DatabaseService:
     db: AsyncSession
 
@@ -22,44 +21,115 @@ class DatabaseService:
 
     async def connect_to_db_and_get_scheme(self, connection_string: str, user: User):
         try:
-            engine: AsyncEngine = create_engine(connection_string)
+            # Create sync engine for schema inspection
+            engine = create_engine(connection_string)
             inspector = inspect(engine)
-
-            tables = inspector.get_table_names()
-            scheme = {}
-
-            for table_name in tables:
-                columns = inspector.get_columns(table_name)
-                scheme[table_name] = columns
-
-            engine.dispose()
-            logger.info('Connected to database and retrieved schema')
-            return scheme
-
+            
+            try:
+                tables = inspector.get_table_names()
+                scheme = {}
+                
+                for table_name in tables:
+                    # Get basic column info
+                    columns = inspector.get_columns(table_name)
+                    
+                    # Enhance column information
+                    for column in columns:
+                        # Convert SQLAlchemy type to string representation
+                        column['type'] = str(column['type'])
+                        
+                        # Add foreign key information
+                        fk_info = []
+                        for fk in inspector.get_foreign_keys(table_name):
+                            if column['name'] in fk['constrained_columns']:
+                                fk_info.append({
+                                    'referred_table': fk['referred_table'],
+                                    'referred_column': fk['referred_columns'][0]
+                                })
+                        if fk_info:
+                            column['foreign_keys'] = fk_info
+                        
+                        # Add primary key information
+                        pk_constraint = inspector.get_pk_constraint(table_name)
+                        column['primary_key'] = column['name'] in pk_constraint.get('constrained_columns', [])
+                        
+                        # Clean up any database-specific attributes
+                        column.pop('dialect_options', None)
+                        
+                    scheme[table_name] = columns
+                
+                logger.info(f'Connected to database and retrieved schema for user {user.id}')
+                engine.dispose()
+                return scheme
+                
+            except Exception as schema_error:
+                logger.error(
+                    f"{user.id=} couldn't extract schema. Reason: {schema_error}"
+                )
+                raise schema_error
+                
         except Exception as e:
             logger.error(
-                f"{user.id=} couuldn't connect to database. Reason {e}."
+                f"{user.id=} couldn't connect to database. Reason {e}."
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "success": False,
-                    "message": f"Coudn't connect to database",
+                    "message": "Couldn't connect to database",
                     "data": None,
                     "error": {"message": f"Couldn't connect to database:\n {e}."},
                 },
             )
+        finally:
+            if 'engine' in locals():
+                engine.dispose()
+
+
+    # async def connect_to_db_and_get_scheme(self, connection_string: str, user: User): # this is more consise, can lead to edge cases and errors.
+    #     try:
+    #         engine: AsyncEngine = create_engine(connection_string)
+    #         inspector = inspect(engine)
+
+    #         tables = inspector.get_table_names()
+    #         scheme = {}
+
+    #         for table_name in tables:
+    #             columns = inspector.get_columns(table_name)
+    #             scheme[table_name] = columns
+
+    #         engine.dispose()
+    #         logger.info('Connected to database and retrieved schema')
+    #         print(scheme)
+    #         return scheme
+
+    #     except Exception as e:
+    #         logger.error(
+    #             f"{user.id=} couuldn't connect to database. Reason {e}."
+    #         )
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail={
+    #                 "success": False,
+    #                 "message": f"Coudn't connect to database",
+    #                 "data": None,
+    #                 "error": {"message": f"Couldn't connect to database:\n {e}."},
+    #             },
+    #         )
+
+
+
 
     async def connect_to_database(self, user: User, db_credentials: DbCredentials):
         connection_string = get_connection_string(db_credentials)
         schema = await self.connect_to_db_and_get_scheme(connection_string, user)
+        
         if schema:
             db_credentials_for_db = Database(
                 db_provider=db_credentials.db_provider,
                 db_name=db_credentials.db_name,
                 username=db_credentials.db_username,
                 password=hash_helper.encrypt(db_credentials.db_password),
-               # password=db_credentials.db_password,
                 host=db_credentials.db_host,
                 port=db_credentials.db_port,
                 user_id=user.id,
@@ -67,11 +137,11 @@ class DatabaseService:
                 created_at=datetime.datetime.now(),
                 schema=str(schema),
             )
-
             self.db.add(db_credentials_for_db)
             await self.db.commit()
             await self.db.refresh(user)
             return str(schema)
+            
         logger.error(
             f"{user.id=} couldn't connect to database."
         )
@@ -85,25 +155,34 @@ class DatabaseService:
             },
         )
     
-    async def test_connection(dbcredentials:DbCredentials):
-        connection_string = get_connection_string(dbcredentials)
+    
+
+
+
+
+
+    async def test_connection(db_credentials: DbCredentials) -> bool:
+        engine = None
         try:
-            engine: AsyncEngine = create_engine(connection_string)
-            inspector = inspect(engine)
-
-            tables = inspector.get_table_names()
-            scheme = {}
-
-            for table_name in tables:
-                columns = inspector.get_columns(table_name)
-                scheme[table_name] = columns
-
-            engine.dispose()
+            connection_string = get_connection_string(db_credentials)
+            
+            engine = create_engine(connection_string)
+            
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                
             logger.info('Connection tested successfully')
             return True
+            
         except Exception as e:
             logger.error(f'Error while connecting to database: Reason - {e}')
             return False
+            
+        finally:
+            if engine is not None:
+                engine.dispose()
+
+
 
 
 
