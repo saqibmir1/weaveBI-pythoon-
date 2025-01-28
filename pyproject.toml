@@ -1,7 +1,7 @@
 [project]
-name = "nl-to-sql"
+name = "weaveBI"
 version = "0.1.0"
-description = "Add your description here"
+description = "Data analysis dashboards app."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -44,4 +44,5 @@ dependencies = [
     "aiosmtplib>=3.0.2",
     "fastapi-pagination>=0.12.34",
     "pymysql>=1.1.1",
+    "pyproject-toml>=0.1.0",
 ]
