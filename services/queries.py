@@ -21,7 +21,7 @@ from models.databases import Database
 from models.queries import Query
 from models.users import User
 from models.dashboards import Dashboard, dashboard_queries
-from schemas.queries import  SaveQueryRequest, UpdateQueryRequest
+from schemas.queries import  SaveQueryRequest, UpdateQueryRequest, UserQueryRequest
 
 os.environ["OPENAI_API_KEY"] = llm_settings.api_key
 model = llm_config.settings.model
@@ -132,8 +132,8 @@ class QueryService:
                 Session = sessionmaker(bind=engine)
                 session = Session()
 
-                if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
-                    sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 50;'
+                if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
+                    sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
                 query = text(sql_query)
                 result = session.execute(query)
                 query_result = result_to_json_updated(result)
@@ -410,4 +410,117 @@ class QueryService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while updating query."
+            )
+        
+
+
+#################################### temp #####################################################
+    async def test_query(self, query_data:UserQueryRequest, user: User):
+
+        # get query:
+        output_type = query_data.output_type
+        query_text = query_data.query_text
+        db_id = query_data.db_id
+
+        # get schema
+        schema_result = await self.db.execute(select(Database.schema).where(Database.id == db_id))
+        schema = schema_result.scalar_one()
+        
+
+        # get connection string
+        connection_string_result = await self.db.execute(select(Database.db_connection_string).where(Database.id == db_id))
+        connection_string = connection_string_result.scalar_one()
+
+          # Load prompts
+        with open("prompts/prompts.yaml", "r") as f:
+            prompts = yaml.safe_load(f)
+
+        # create LLM Instance
+        llm = ChatOpenAI(model=model, temperature=0)
+
+        try:
+
+            # step 1: get sql query  based on type
+            if output_type == "tabular":
+                prompt = (
+                    prompts["system_prompts"]["primary"]+
+                    f'Schema: {schema}\n'
+                )
+            elif output_type=="descriptive":
+                prompt = (
+                    prompts["system_prompts"]["primary"]+
+                    f'Schema: {schema}\n'
+                )
+            else:
+                prompt = (
+                    prompts["system_prompts"]["graphical"]+
+                    f'Schema: {schema}\n'+
+                    f'Graphical Representation of {output_type}\n'
+                )
+
+            # Generate SQL
+            chat_template = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessage(content=prompt),
+                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
+                ]
+            )
+            output_parser = StrOutputParser()
+            llm_chain = chat_template | llm | output_parser
+            guard_rail_chain = guard_rail | llm_chain
+
+            sql_query = guard_rail_chain.invoke({"input": query_text})
+
+            # check if guardrails failed
+            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
+                sql_query = "Query blocked by guardrails"
+                final_data = "Query blocked by guardrails"
+                logger.warning(f"QueryService->execute_query: {user.id=} Query blocked by guardrails")
+            else:
+                # step 2: execute sql query
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
+
+                if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
+                    sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
+                query = text(sql_query)
+                result = session.execute(query)
+                query_result = result_to_json_updated(result)
+
+                # Step 3: Process result based on type
+                if output_type == "tabular":
+                    final_data = query_result
+                elif output_type == "descriptive":
+                    insights_prompt = (
+                        prompts["system_prompts"]["descriptive_prompt"] +
+                        f'User Query: {query_text}\n' +
+                        f'Generated SQL Query: {sql_query}\n' +
+                        f'Query Output from database: {query_result}'
+                    )
+                    insights_response = await llm.agenerate([insights_prompt])
+                    final_data = insights_response.generations[0][0].text.strip()
+                else:
+                    chart_prompt = (
+                        prompts["system_prompts"]["chartjs_formatter"] +
+                        f'User Query: {query_text}\n' +
+                        f'Generated SQL Query: {sql_query}\n' +
+                        f'Query Output From Database: {query_result}\n' +
+                        f'Graphical Representation type: {output_type}'
+                    )
+                    chart_response = await llm.agenerate([chart_prompt])
+                    final_data = chart_response.generations[0][0].text.strip()
+
+
+            return {
+                "generated_sql_query": sql_query,
+                "query_result": final_data,
+            }
+          
+        
+        except Exception as e:
+            logger.error(f"{user.id=} Error occured while executing query. Reason: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occured while executing query"
             )
