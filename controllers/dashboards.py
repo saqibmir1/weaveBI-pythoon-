@@ -47,9 +47,9 @@ class DashboardController:
           return await dashboard_service.fetch_dashboard_data(dashboard_id, user)
 
 
-    async def get_dashboard_queries(dashboard_id:int, user:User, db:AsyncSession):
+    async def get_dashboard_queries(dashboard_id:int, user:User, db:AsyncSession, page:int, limit:int):
           dashboard_service = DashboardService(db)
-          return await dashboard_service.get_dashboard_queries(dashboard_id, user)
+          return await dashboard_service.get_dashboard_queries(dashboard_id, user, page, limit)
     
 
     async def update_dashboard_layout( layout:UpdateQueriesRequest, user:User, db:AsyncSession):

@@ -135,14 +135,21 @@ async def get_dashboard(
 async def get_dashboard_queries(
     dashboard_id: int,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    page:int = 1,
+    limit:int = 10,
 ):
     try:
-        queries = await DashboardController.get_dashboard_queries(dashboard_id, user, db)
+        queries, total_count = await DashboardController.get_dashboard_queries(dashboard_id, user, db, page, limit)
         return ApiResponse(
             success=True,
             message="Queries retrieved successfully.",
-            data={"queries": queries}
+            data = {
+                "queries": queries,
+                "total_count": total_count,
+                "page": page,
+                "limit": limit
+            }
         )
     except Exception as exc:
         return ApiResponse(
