@@ -84,7 +84,9 @@ async def get_dashboards_by_tags(
             "total_count": total_count,
         }
     except Exception as exc:
-        return None
+        return {
+            "error": str(exc)
+        }
 
 
     
