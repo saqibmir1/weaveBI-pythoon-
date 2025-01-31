@@ -74,10 +74,15 @@ async def get_dashboards_by_tags(
     tags: List[str] = Query(None),  # Use Query for multiple tag parameters
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    page:int=1,
+    limit:int=10
 ):
     try:
-        user_dashboards = await DashboardController.get_dashboards_by_tags(tags, user, db)
-        return user_dashboards
+        user_dashboards, total_count = await DashboardController.get_dashboards_by_tags(tags, user, db, page, limit)
+        return {
+            "user_dashboards": user_dashboards,
+            "total_count": total_count,
+        }
     except Exception as exc:
         return None
 

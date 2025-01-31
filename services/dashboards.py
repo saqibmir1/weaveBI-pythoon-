@@ -542,22 +542,42 @@ class DashboardService:
             )
         
 
-    async def get_dashboards_by_tags(self, tags: List[str], user: User):
+    async def get_dashboards_by_tags(self, tags: List[str], user: User, page: int, limit: int):
+        offset = (page - 1) * limit
+
         # If tags is empty or None, return all dashboards
         if not tags:
-            return await self.get_dashboards(user)
-        
-        query = select(Dashboard).join(dashboard_tags).join(Tag).where(
-            (Dashboard.user_id == user.id) & 
-            (Dashboard.is_deleted == False) & 
+            return await self.get_dashboards(user, page, limit)
+
+        query = select(Dashboard, func.count().over().label('total_count')).join(dashboard_tags).join(Tag).where(
+            (Dashboard.user_id == user.id) &
+            (Dashboard.is_deleted == False) &
             (Tag.name.in_(tags))
-        ).distinct()
-        
+        ).distinct().limit(limit).offset(offset)
+
         result = await self.db.execute(query)
-        dashboards = result.scalars().all()
-        
-        logger.info(f"Retrieved dashboards by tags for user {user.id}")
-        return dashboards
+        rows = result.all()
+
+        if not rows:
+            return [], 0
+
+        total_count = rows[0].total_count
+
+        logger.info(f"Retrieved {len(rows)} dashboards by tags for user {user.id}")
+
+        dashboards = [
+            {
+                "id": row.Dashboard.id,
+                "name": row.Dashboard.name,
+                "description": row.Dashboard.description,
+                "db_id": row.Dashboard.db_id,
+                "created_on": row.Dashboard.created_at,
+                "updated_at": row.Dashboard.updated_at
+            }
+            for row in rows
+        ]
+
+        return dashboards, total_count
 
 
 
