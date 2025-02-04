@@ -163,6 +163,5 @@ cython_debug/
 #.idea/
 
 
-alembic/versions/*
 .vscode/
 to-do.*

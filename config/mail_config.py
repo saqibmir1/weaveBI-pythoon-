@@ -11,5 +11,7 @@ class Settings:
     hostname = os.environ.get("MAIL_HOSTNAME")
     port = os.environ.get("MAIL_PORT")
     start_tls = os.environ.get("MAIL_START_TLS")
+    
+    redis_host = os.environ.get("REDIS_HOST")
 
 settings = Settings()

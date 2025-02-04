@@ -105,7 +105,7 @@ class UserService:
         user = result.scalar_one_or_none()
         if user:
             otp= str(random.randint(100000, 999999))
-            redis_client = Redis(decode_responses=True)
+            redis_client = Redis(host=settings.redis_host, decode_responses=True)
             await redis_client.setex(f"otp:{email}", 300, otp)
             await redis_client.close()
             logger.info(f"OTP generated for {email}")
@@ -147,7 +147,7 @@ class UserService:
             
         
     async def reset_password(self, email:str, otp:str, new_password:str):
-        redis_client = Redis(decode_responses=True)
+        redis_client = Redis(host=settings.redis_host, decode_responses=True)
         saved_otp = await redis_client.get(f"otp:{email}")
         await redis_client.close()
         if saved_otp == otp and new_password:
