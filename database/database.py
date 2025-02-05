@@ -15,6 +15,7 @@ def get_url():
 
 SQLALCHEMY_DATABASE_URL = get_url()
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
+print(SQLALCHEMY_DATABASE_URL)
 
 
 AsyncSessionLocal: Callable[[], AsyncSession] = async_sessionmaker(

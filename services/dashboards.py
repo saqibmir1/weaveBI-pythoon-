@@ -152,6 +152,48 @@ class DashboardService:
             )
 
 
+    async def search_dashboards(self, user: User, search: str, page: int, limit: int):
+        try:
+            offset = (page - 1) * limit
+            
+            # Single query using a window function to get both data and count
+            query = select(Dashboard,func.count().over().label('total_count')).where(
+                (Dashboard.user_id == user.id) &
+                (Dashboard.is_deleted == False) &
+                (Dashboard.name.ilike(f"%{search}%"))).limit(limit).offset(offset)
+            
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if not rows:
+                return [], 0
+                
+            # Extract total count from first row
+            total_count = rows[0].total_count
+            
+            logger.info(f"Retrieved {len(rows)} dashboards from DB for user {user.id}")
+            
+            dashboards = [
+                {
+                    "id": row.Dashboard.id,
+                    "name": row.Dashboard.name,
+                    "description": row.Dashboard.description,
+                    "db_id": row.Dashboard.db_id,
+                    "created_on": row.Dashboard.created_at,
+                    "updated_at": row.Dashboard.updated_at
+                }
+                for row in rows
+            ]
+            
+            return dashboards, total_count
+            
+        except Exception as exc:
+            logger.error(f"Error retrieving dashboards - {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while retrieving dashboards."
+            )
+
 
 
     async def get_dashboards_count(self, user: User):
@@ -578,7 +620,3 @@ class DashboardService:
         ]
 
         return dashboards, total_count
-
-
-
-        
