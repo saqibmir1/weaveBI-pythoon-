@@ -232,6 +232,55 @@ class DatabaseService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving databases."
             )
+        
+
+    async def search_databases(self, user: User, search: str, page: int, limit: int):
+        try:
+            offset = (page - 1) * limit
+            
+            # Single query using window function to get both data and count
+            query = select(
+                Database,
+                func.count().over().label('total_count')
+            ).where(
+                (Database.user_id == user.id) & 
+                (Database.is_deleted == False) &
+                (Database.db_name.ilike(f'%{search}%'))
+            ).limit(limit).offset(offset)
+            
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if not rows:
+                return [], 0
+                
+            # Get total count from first row
+            total_count = rows[0].total_count
+            
+            databases = [
+                {
+                    "db_provider": row.Database.db_provider,
+                    "db_name": row.Database.db_name,
+                    "db_username": row.Database.username,
+                    "db_host": row.Database.host,
+                    "db_port": row.Database.port,
+                    "db_id": row.Database.id,
+                    "updated_at": row.Database.updated_at,
+                    "created_at": row.Database.created_at
+                }
+                for row in rows
+            ]
+            
+            logger.info(f"Retrieved databases for {user.id=}")
+            
+            return databases, total_count
+            
+        except Exception as exc:
+            logger.error(f"Error retrieving databases - {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while retrieving databases."
+            )
 
 
 

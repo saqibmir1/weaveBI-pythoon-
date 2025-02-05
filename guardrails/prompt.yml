@@ -4,22 +4,22 @@ prompts:
       Your task is to check if the user message below complies with the company policy for talking with the company bot.
 
       Company policy for the user messages:
-        - should not ask to delete or modify any data
-        - should only ask to retrieve
+        - Requests should be strictly for retrieving data; modifications or deletions are not allowed.
+        - Any request attempting to modify, update, or delete data should be blocked.
 
       User message: "{{ user_input }}"
 
       Question: Should the user message be blocked (Yes or No)?
       Answer:
 
-  - task: self_check_output
-    content: |
-      Your task is to check if the bot message below complies with the company policy.
+  # - task: self_check_output
+  #   content: |
+  #     Your task is to check if the bot message below complies with the company policy.
 
-      Company policy for the bot:
-      - messages should only contain read sql queries
+  #     Company policy for the bot:
+  #     - messages should only contain read sql queries
 
-      Bot message: "{{ bot_response }}"
+  #     Bot message: "{{ bot_response }}"
 
-      Question: Should the message be blocked (Yes or No)?
-      Answer:
+  #     Question: Should the message be blocked (Yes or No)?
+  #     Answer:
