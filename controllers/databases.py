@@ -16,6 +16,10 @@ class DatabaseController:
         daoDbCredentials = DatabaseService(db=db)
         return await daoDbCredentials.get_users_databases(user, page, limit)
     
+    async def search_databases(user: User, db: AsyncSession, search:str, page:int, limit:int):
+        daoDbCredentials = DatabaseService(db=db)
+        return await daoDbCredentials.search_databases(user, search, page, limit)
+    
     
     async def get_dbs_count(user: User, db: AsyncSession):
         daoDbCredentials = DatabaseService(db=db)

@@ -58,6 +58,22 @@ async def get_user_databases(
 
     }
 
+@DbRoute.get("/search", summary="Search for a database")
+async def search_databases(
+    search: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit: int = 10
+):
+    user_databases, total_count = await DatabaseController.search_databases(user, db, search, page, limit)
+    return {
+        "databases": user_databases,
+        "total_count": total_count,
+        "page": page,
+        "limit": limit
+    }
+
 
 @DbRoute.get("/count", response_model=ApiResponse, summary="Get count of all user databases")
 async def get_database_count(
