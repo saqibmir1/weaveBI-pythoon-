@@ -68,6 +68,35 @@ async def get_dashboards(
         )
     
 
+@DashboardRoute.get("/search",response_model=ApiResponse, summary="Search for dashboards")
+async def search_dashboards(
+    search: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit: int = 10
+):
+    try:
+        user_dashboards, total_count = await DashboardController.search_dashboards(user, db, search, page, limit)
+        return ApiResponse(
+            success=True,
+            message="Dashboards retrieved successfully.",
+            data={
+                "dashboards": user_dashboards,
+                "total_count": total_count,
+                "page": page,
+                "limit": limit
+            }
+        )
+    except Exception as exc:
+        return ApiResponse(
+            success=False,
+            message="An unexpected error occurred while retrieving dashboards.",
+            error=str(exc)
+        )
+
+    
+
 
 @DashboardRoute.get("/by-tags", summary="Get dashboards filtered by tags")
 async def get_dashboards_by_tags(

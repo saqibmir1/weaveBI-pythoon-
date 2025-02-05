@@ -14,7 +14,11 @@ class DashboardController:
 
     async def get_dashboards(user: User, db: AsyncSession, page: int, limit: int):
         dashboard_service = DashboardService(db)
-        return await dashboard_service.get_dashboards(user, page, limit)  
+        return await dashboard_service.get_dashboards(user, page, limit)
+
+    async def search_dashboards(user: User, db: AsyncSession, search: str, page: int, limit: int):
+            dashboard_service = DashboardService(db)
+            return await dashboard_service.search_dashboards(user, search, page, limit)  
 
     
     async def get_dashboard(id:int, user:User, db:AsyncSession):

@@ -5,9 +5,11 @@ RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY . .
+ADD . /app/
 
 RUN uv sync --frozen
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
