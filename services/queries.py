@@ -362,6 +362,54 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
             )
+        
+
+    async def search_database_queries(self,database_id:int, user: User, search_term:str, page:int, limit:int):
+        try:
+            offset = (page - 1) * limit
+            search_term = f"%{search_term}%"
+            query = select(
+                Query,
+                func.count().over().label('total_count')
+            ).where(
+                (Query.user_id == user.id) & 
+                (Query.is_deleted == False) &
+                (Query.db_id == database_id) &
+                (Query.query_name.ilike(search_term)
+                | Query.query_text.ilike(search_term)
+                | Query.output_type.ilike(search_term)
+                )
+            ).limit(limit).offset(offset)
+            
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if not rows:
+                return [], 0
+                
+            # Get total count from first row
+            total_count = rows[0].total_count
+            logger.info(f"Fetched all queries for user {user.id}")
+
+            queries =  [
+                {
+                    "id": row.Query.id,
+                    "query_name": row.Query.query_name,
+                    "query_text": row.Query.query_text,
+                    "output_type": row.Query.output_type,
+                    "created_at": row.Query.created_at,
+                    "updated_at": row.Query.updated_at
+                }
+                for row in rows
+            ]
+            return queries, total_count
+
+        except Exception as e:
+            logger.error(f"Error fetching queries - {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while fetching queries."
+            )
 
 
     async def get_queries_count(self,database_id:int,  user: User):

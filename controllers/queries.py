@@ -60,3 +60,7 @@ class QueryController:
     async def test_query(query_data: UserQueryRequest , db: AsyncSession, user: User):
         query_service = QueryService(db=db)
         return await query_service.test_query(query_data, user)
+    
+    async def search_database_queries(database_id:int, user: User, db: AsyncSession, search_term:str, page:int, limit:int):
+        dashboard_service = QueryService(db)
+        return await dashboard_service.search_database_queries(database_id, user, search_term, page, limit)

@@ -148,6 +148,27 @@ async def fetch_database_queries(
 
     except Exception as exc:
         return exc
+    
+@QueryRoute.get("/search-database-queries/{database_id}", summary="Search queries associated with a database.")
+async def search_database_queries(
+    database_id:int,
+    user:User=Depends(get_current_user),
+    db:AsyncSession=Depends(get_db),
+    search_term:str=None,
+    page:int=1,
+    limit:int=10,
+    ):
+    try:
+        queries, total_count = await QueryController.search_database_queries(database_id, user, db, search_term, page, limit)
+        return {
+            "queries": queries,
+            "total_count": total_count,
+            "page": page,
+            "limit": limit
+    }
+
+    except Exception as exc:
+        return exc
 
     
 @QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of dashboards for current user")
