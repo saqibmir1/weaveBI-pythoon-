@@ -1,7 +1,7 @@
 import datetime
 from fastapi import HTTPException
 from sqlalchemy import create_engine, inspect, select, func, text
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 from models.databases import Database
 from models.users import User

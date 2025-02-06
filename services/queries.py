@@ -209,7 +209,6 @@ class QueryService:
                 logger.info("Adding custom instructions to the prompt")
 
             if use_web:
-              #  prompt+=f'\nUse your knowledge and internet browser to compare this data and give me additional insights/suggestions too.'
                 prompt += f'\nUse your knowledge and reliable internet sources to analyze and compare this data. Provide additional insights, trends, or actionable suggestions based on the query results and any relevant external information you can find online. Ensure that your insights are well-supported and cite credible sources where applicable.'
                 logger.info("Setting use_web to True")
             logger.info(f'Generating insights for query id: {query_id}...')

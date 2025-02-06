@@ -84,7 +84,7 @@ class UserService:
             await self.db.execute(update(Database).where(Database.user_id == user_id).values(is_deleted=True))
 
 
-            # soft delete records in queries)
+            # soft delete records in queries
             await self.db.execute(update(Query).where(Query.user_id == user_id).values(is_deleted=True))
 
 

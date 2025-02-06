@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+
 
 class UserQueryRequest(BaseModel):
     query_name: str = "Count"
@@ -12,22 +12,11 @@ class QueryInsightsRequest(BaseModel):
     custom_instructions: str | None = Field(default=None, description="Optional instructions for insights generation")
     
 
-
-
-class QueryRequest(BaseModel):
-    query_name: str
-    query_text: str
-    output_type: str
-    dashboard_id: int
-    db_id: int
-
 class SaveQueryRequest(BaseModel):
     query_name: str
     query_text: str
     output_type: str
     db_id: int
-
-
 
 
 class UpdateQueryRequest(BaseModel):
