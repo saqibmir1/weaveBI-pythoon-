@@ -6,9 +6,7 @@ from schemas.databases import DbCredentials, UpdatedCredentials
 from controllers.databases import DatabaseController
 from schemas.generic_response_models import ApiResponse
 
-
 DbRoute = APIRouter()
-
 
 @DbRoute.post("/", response_model=ApiResponse, summary="Save database credentials")
 async def create_database_credentials(
@@ -38,17 +36,15 @@ async def test_connection(db_credentials:DbCredentials):
         message="Couldn't connect to database."
     )
 
-
-
-
 @DbRoute.get("/", summary="Get all databases of current user")
 async def get_user_databases(
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db),
     page: int = 1,
-    limit: int = 10
+    limit: int = 10,
+    search:str=None,
 ):
-    user_databases, total_count = await DatabaseController.get_user_dbs(user, db, page, limit)
+    user_databases, total_count = await DatabaseController.get_user_dbs(user, db, page, limit, search)
     return {
      
         "databases": user_databases,
@@ -57,23 +53,6 @@ async def get_user_databases(
         "limit": limit
 
     }
-
-@DbRoute.get("/search", summary="Search for a database")
-async def search_databases(
-    search: str,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    page: int = 1,
-    limit: int = 10
-):
-    user_databases, total_count = await DatabaseController.search_databases(user, db, search, page, limit)
-    return {
-        "databases": user_databases,
-        "total_count": total_count,
-        "page": page,
-        "limit": limit
-    }
-
 
 @DbRoute.get("/count", response_model=ApiResponse, summary="Get count of all user databases")
 async def get_database_count(
@@ -98,8 +77,6 @@ async def update_database_credentials(
     return {
         "data": updated_db_credentials_schema
     }
-
-
 
 @DbRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a database")
 async def delete_database_credentials(

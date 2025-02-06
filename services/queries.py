@@ -30,12 +30,9 @@ config = RailsConfig.from_path("guardrails")
 guard_rail = RunnableRails(config=config)
 
 
-
 class QueryService:
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    
 
     async def save_queries(self, post_queries: SaveQueryRequest, user: User):
         try:
@@ -63,7 +60,6 @@ class QueryService:
                 },
             ) 
         
-      
     async def execute_query(self, query_id, user: User):
 
         # get query:
@@ -161,7 +157,6 @@ class QueryService:
                     chart_response = await llm.agenerate([chart_prompt])
                     final_data = chart_response.generations[0][0].text.strip()
 
-
              # put final data and generated sql query in queries table
             serialized_data = json.dumps(final_data)
             await self.db.execute(update(Query).where(Query.id == query_id).values(data=serialized_data))
@@ -186,11 +181,10 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occured while executing query"
             )
-    
 
-    async def get_insights(self, query_id: int, use_web: bool, custom_instructions:str | None) -> str:
+    async def get_insights(self, query_id: int, use_web: bool, custom_instructions:str | None, user:User) -> str:
         try:
-            result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) )) 
+            result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) & (Query.user_id==user.id))) 
             query_data = result.scalar_one_or_none()
             logger.info(f'Selected {query_data.query_text} for insights')
             if not query_data:
@@ -215,11 +209,9 @@ class QueryService:
                 logger.info("Adding custom instructions to the prompt")
 
             if use_web:
-              #  prompt+=f'\nUse your knowledge and internet browser to compare this data and give me additional insights/suggestions too.'
                 prompt += f'\nUse your knowledge and reliable internet sources to analyze and compare this data. Provide additional insights, trends, or actionable suggestions based on the query results and any relevant external information you can find online. Ensure that your insights are well-supported and cite credible sources where applicable.'
                 logger.info("Setting use_web to True")
             logger.info(f'Generating insights for query id: {query_id}...')
-
 
             # generate insights using llm
             llm = ChatOpenAI(model=model, temperature=0)
@@ -237,7 +229,6 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f'An error occured while generating insights: {str(e)}'
             )
-        
 
     async def link_query_to_dashboard(
         self,
@@ -257,8 +248,6 @@ class QueryService:
                 Dashboard.is_deleted == False,
                 Dashboard.user_id == user.id
             )
-
-        
             query_result = await self.db.execute(query_stmt)
             dashboard_result = await self.db.execute(dashboard_stmt)
             
@@ -318,69 +307,27 @@ class QueryService:
                 detail=f"Error while linking query to dashboard: {str(e)}"
             )
 
-
-    async def fetch_database_queries(self,dashboard_id:int,  user: User, page:int, limit:int):
+    async def fetch_database_queries(self, dashboard_id: int, user: User, page: int, limit: int, search_term: str = None):
         try:
             offset = (page - 1) * limit
-            
-            # Single query using window function to get both data and count
             query = select(
                 Query,
                 func.count().over().label('total_count')
             ).where(
                 (Query.user_id == user.id) & 
                 (Query.is_deleted == False) &
-                (Query.db_id==dashboard_id)
-            ).limit(limit).offset(offset)
-            
-            result = await self.db.execute(query)
-            rows = result.all()
-            
-            if not rows:
-                return [], 0
-                
-            # Get total count from first row
-            total_count = rows[0].total_count
-            logger.info(f"Fetched all queries for user {user.id}")
-
-            queries =  [
-                {
-                    "id": row.Query.id,
-                    "query_name": row.Query.query_name,
-                    "query_text": row.Query.query_text,
-                    "output_type": row.Query.output_type,
-                    "created_at": row.Query.created_at,
-                    "updated_at": row.Query.updated_at
-                }
-                for row in rows
-            ]
-            return queries, total_count
-
-        except Exception as e:
-            logger.error(f"Error fetching queries - {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error occurred while fetching queries."
+                (Query.db_id == dashboard_id)
             )
-        
-
-    async def search_database_queries(self,database_id:int, user: User, search_term:str, page:int, limit:int):
-        try:
-            offset = (page - 1) * limit
-            search_term = f"%{search_term}%"
-            query = select(
-                Query,
-                func.count().over().label('total_count')
-            ).where(
-                (Query.user_id == user.id) & 
-                (Query.is_deleted == False) &
-                (Query.db_id == database_id) &
-                (Query.query_name.ilike(search_term)
-                | Query.query_text.ilike(search_term)
-                | Query.output_type.ilike(search_term)
+            
+            if search_term:
+                search_term = f"%{search_term}%"
+                query = query.where(
+                    Query.query_name.ilike(search_term) |
+                    Query.query_text.ilike(search_term) |
+                    Query.output_type.ilike(search_term)
                 )
-            ).limit(limit).offset(offset)
             
+            query = query.limit(limit).offset(offset)
             result = await self.db.execute(query)
             rows = result.all()
             
@@ -391,7 +338,7 @@ class QueryService:
             total_count = rows[0].total_count
             logger.info(f"Fetched all queries for user {user.id}")
 
-            queries =  [
+            queries = [
                 {
                     "id": row.Query.id,
                     "query_name": row.Query.query_name,
@@ -411,13 +358,16 @@ class QueryService:
                 detail="Error occurred while fetching queries."
             )
 
-
-    async def get_queries_count(self,database_id:int,  user: User):
+    async def get_queries_count(self, database_id: int, user: User):
         try:
-            query = select(func.count()).select_from(Query).where(Query.db_id == database_id,Query.is_deleted == False)
+            query = select(func.count()).select_from(Query).where(
+                Query.db_id == database_id,
+                Query.is_deleted == False,
+                Query.user_id == user.id
+            )
 
             result = await self.db.execute(query)
-            count = result.scalar() 
+            count = result.scalar()
             return count
         except Exception as e:
             logger.error(f'Error fetching count - {str(e)}')
@@ -426,7 +376,6 @@ class QueryService:
                 detail="Error occurred while fetching queries count."
             )
         
-
     async def delete_query(self, id:int, user:User):
         try:
             # soft delete query
@@ -448,7 +397,6 @@ class QueryService:
                 detail="Error occurred while deleting query."
             )
         
-
     async def update_query(self, post_queries: UpdateQueryRequest, user: User):
         try:
             query = await self.db.execute(select(Query).where((Query.id == post_queries.query_id) & (Query.user_id == user.id) & (Query.is_deleted == False)))
@@ -476,8 +424,6 @@ class QueryService:
                 detail="Error occurred while updating query."
             )
         
-
-
 #################################### temp #####################################################
     async def test_query(self, query_data:UserQueryRequest, user: User):
 

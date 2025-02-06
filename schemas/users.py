@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-class UserCreate(BaseModel):
 
+class UserCreate(BaseModel):
     name: str = Field(examples=["John Doe"])
     email: EmailStr = Field(examples=["johndoe@example.com"])
     password: str = Field(examples=["secret12345"], min_length=8)
@@ -11,7 +11,6 @@ class UserCreate(BaseModel):
         return value.lower()
 
 
-# Models for specific data payloads
 class Token(BaseModel):
     access_token: str
     token_type: str = "Bearer"

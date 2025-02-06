@@ -12,9 +12,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from database.database import Base
 
-
-
-
 # Many-to-Many Join Table: dashboard_queries
 dashboard_queries = Table(
     'dashboard_queries',
@@ -28,8 +25,6 @@ dashboard_queries = Table(
     Column('h', Integer, nullable=True, default=4),  # height
 )
 
-
-
 # Many-to-Many Join Table: dashboard_tags
 dashboard_tags = Table(
     'dashboard_tags',
@@ -37,9 +32,6 @@ dashboard_tags = Table(
     Column('dashboard_id', ForeignKey('dashboards.id'), primary_key=True),
     Column('tag_id', ForeignKey('tags.id'), primary_key=True)
 )
-
-
-
 
 # Dashboard Table
 class Dashboard(Base):

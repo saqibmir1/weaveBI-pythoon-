@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.users import UserController
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 UserRouter = APIRouter()
 
 @UserRouter.post("/sign-up", response_model=ApiResponse, summary="Create new user")
@@ -27,8 +26,6 @@ async def log_in_user(
 ):
     signed_jwt = await UserController.login_user(user_credentials, db)
     return signed_jwt
-
-
 
 @UserRouter.put("/update", response_model=ApiResponse, summary="Update user details")
 async def update_user(updated_user:UserUpdate, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
@@ -57,8 +54,6 @@ async def delete_user_acccount(
         message="Failed to delete user",
         error={"message": "Unknown error"},
     )
-
-
     
 @UserRouter.get("/forgot-password", response_model=ApiResponse, summary="Generate and send OTP to user's email")
 async def generate_user_otp(email:str, db:AsyncSession=Depends(get_db)):

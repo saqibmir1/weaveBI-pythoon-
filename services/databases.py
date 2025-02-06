@@ -1,7 +1,7 @@
 import datetime
 from fastapi import HTTPException
 from sqlalchemy import create_engine, inspect, select, func, text
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 from models.databases import Database
 from models.users import User
@@ -117,9 +117,6 @@ class DatabaseService:
     #             },
     #         )
 
-
-
-
     async def connect_to_database(self, user: User, db_credentials: DbCredentials):
         connection_string = get_connection_string(db_credentials)
         schema = await self.connect_to_db_and_get_scheme(connection_string, user)
@@ -155,12 +152,6 @@ class DatabaseService:
             },
         )
     
-    
-
-
-
-
-
     async def test_connection(db_credentials: DbCredentials) -> bool:
         engine = None
         try:
@@ -182,22 +173,24 @@ class DatabaseService:
             if engine is not None:
                 engine.dispose()
 
-
-
-
-
-    async def get_users_databases(self, user: User, page: int, limit: int):
+    async def get_users_databases(self, user: User, page: int, limit: int, search: str = None):
         try:
             offset = (page - 1) * limit
             
-            # Single query using window function to get both data and count
+            # Base query
             query = select(
                 Database,
                 func.count().over().label('total_count')
             ).where(
                 (Database.user_id == user.id) & 
                 (Database.is_deleted == False)
-            ).limit(limit).offset(offset)
+            )
+            
+            # Add search condition if search term is provided
+            if search:
+                query = query.where(Database.db_name.ilike(f'%{search}%'))
+            
+            query = query.limit(limit).offset(offset)
             
             result = await self.db.execute(query)
             rows = result.all()
@@ -232,66 +225,9 @@ class DatabaseService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving databases."
             )
-        
-
-    async def search_databases(self, user: User, search: str, page: int, limit: int):
-        try:
-            offset = (page - 1) * limit
-            
-            # Single query using window function to get both data and count
-            query = select(
-                Database,
-                func.count().over().label('total_count')
-            ).where(
-                (Database.user_id == user.id) & 
-                (Database.is_deleted == False) &
-                (Database.db_name.ilike(f'%{search}%'))
-            ).limit(limit).offset(offset)
-            
-            result = await self.db.execute(query)
-            rows = result.all()
-            
-            if not rows:
-                return [], 0
-                
-            # Get total count from first row
-            total_count = rows[0].total_count
-            
-            databases = [
-                {
-                    "db_provider": row.Database.db_provider,
-                    "db_name": row.Database.db_name,
-                    "db_username": row.Database.username,
-                    "db_host": row.Database.host,
-                    "db_port": row.Database.port,
-                    "db_id": row.Database.id,
-                    "updated_at": row.Database.updated_at,
-                    "created_at": row.Database.created_at
-                }
-                for row in rows
-            ]
-            
-            logger.info(f"Retrieved databases for {user.id=}")
-            
-            return databases, total_count
-            
-        except Exception as exc:
-            logger.error(f"Error retrieving databases - {exc}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error occurred while retrieving databases."
-            )
-
-
-
-
-    
-
-
 
     async def get_dbs_count(self, user: User):
         try:
-        
             query = select(func.count()).select_from(Database).where(Database.user_id == user.id,Database.is_deleted == False)
 
             result = await self.db.execute(query)
@@ -305,8 +241,6 @@ class DatabaseService:
                 detail="Error occurred while retrieving databases count."
             )
     
-
-
     async def update_db_credentials_and_get_scheme(
         self, updated_credentials: UpdatedCredentials, user: User
     ) -> UpdatedCredentials:
@@ -317,7 +251,6 @@ class DatabaseService:
                 & (Database.is_deleted == False)
             )
         )
-
         existing_database = result.scalar_one_or_none()
         if existing_database:
             connection_string = get_connection_string(updated_credentials)
@@ -333,7 +266,6 @@ class DatabaseService:
                 existing_database.schema = str(schema)
                 existing_database.db_connection_string = connection_string
                 existing_database.created_at = datetime.datetime.now()
-                
 
                 await self.db.commit()
                 await self.db.refresh(user)
@@ -349,7 +281,6 @@ class DatabaseService:
                     "db_port": updated_credentials.db_port,
                     "db_id": updated_credentials.db_id,
                 }
-                
                 return updated_credentials
             logger.error(
                 f"{user.id=} couldn't connect to database with new credentials."
@@ -363,7 +294,6 @@ class DatabaseService:
                     "error": {"message": "Didn't connect to database"},
                 },
             )
-
         logger.error(
             f"database credentials with id: {updated_credentials.db_id} not found for {user.id=}."
         )

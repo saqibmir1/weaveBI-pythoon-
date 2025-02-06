@@ -9,7 +9,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from database.database import Base
 
-
 # User Table
 class User(Base):
     __tablename__ = 'users'

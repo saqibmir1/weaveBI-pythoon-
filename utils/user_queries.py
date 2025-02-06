@@ -4,7 +4,6 @@ from config.prompt_config import settings as prompt_settings
 from schemas.databases import DbCredentials, UpdatedCredentials
 from decimal import Decimal
 
-
 def get_connection_string(db_credentials: DbCredentials | UpdatedCredentials):
     connection_strings = {
         "mysql": f"mysql+pymysql://{db_credentials.db_username}:{db_credentials.db_password}@{db_credentials.db_host}:{db_credentials.db_port}/{db_credentials.db_name}",
@@ -30,10 +29,6 @@ def get_connection_string(db_credentials: DbCredentials | UpdatedCredentials):
                 "error": {"message": "Database not supported"},
             },
         )
-
-
-
-
 
 def result_to_json_updated(result):
     # Get column names

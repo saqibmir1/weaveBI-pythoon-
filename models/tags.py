@@ -6,8 +6,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from database.database import Base
 
-
-
 class Tag(Base):
     __tablename__ = 'tags'
 
