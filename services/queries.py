@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import os, yaml, json
 
 from utils.logger import logger
-from utils.user_queries import  result_to_json_updated
+from utils.user_queries import  result_to_json
 from config.llm_config import settings as llm_settings
 from models.databases import Database
 from models.queries import Query
@@ -132,7 +132,7 @@ class QueryService:
                     sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
                 query = text(sql_query)
                 result = session.execute(query)
-                query_result = result_to_json_updated(result)
+                query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
                 if output_type == "tabular":
@@ -496,7 +496,7 @@ class QueryService:
                     sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
                 query = text(sql_query)
                 result = session.execute(query)
-                query_result = result_to_json_updated(result)
+                query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
                 if output_type == "tabular":

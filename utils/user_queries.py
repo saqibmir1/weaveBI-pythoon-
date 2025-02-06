@@ -30,7 +30,7 @@ def get_connection_string(db_credentials: DbCredentials | UpdatedCredentials):
             },
         )
 
-def result_to_json_updated(result):
+def result_to_json(result):
     # Get column names
     columns = result.keys()
 
