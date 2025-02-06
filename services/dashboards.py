@@ -23,7 +23,7 @@ from models.tags import Tag
 from models.dashboards import Dashboard, dashboard_queries, dashboard_tags
 from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
 from utils.logger import logger
-from utils.user_queries import result_to_json
+from utils.user_queries import result_to_json, load_prompts, choose_prompt, limit_query
 from config.llm_config import settings as llm_settings
 from config import llm_config
 
@@ -211,10 +211,6 @@ class DashboardService:
     async def execute_dashboard_queries(self, dashboard_id: int, user: User):
     # execute dashobard queries
 
-        if (Dashboard.user_id!=user.id):
-            logger.info(f'Dashboard does not belong to {user.id=}')
-            return None
-
         # Get all queries of that dashboard
         queries_result = await self.db.execute(
         select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False))
@@ -237,9 +233,8 @@ class DashboardService:
 
         connection_string = connection_string_result.scalar_one_or_none()
 
-          # Load prompts
-        with open("prompts/prompts.yaml", "r") as f:
-            prompts = yaml.safe_load(f)
+        # Load prompts
+        prompts = load_prompts()
     
         # Create LLM instance
         llm = ChatOpenAI(model=model, temperature=0)
@@ -251,24 +246,7 @@ class DashboardService:
                 query_id = query.id
 
                 # Step 1: Get SQL query based on type
-                if output_type == "tabular":
-                    prompt = (
-                        prompts["system_prompts"]["primary"] +
-                        f'Schema: {schema}\n'
-                    )
-                elif output_type == "descriptive":
-                    prompt = (
-                        prompts["system_prompts"]["primary"] +
-                        f'Schema: {schema}\n'
-                    )
-                else:
-                    prompt = (
-                        prompts["system_prompts"]["graphical"] +
-                        f'Schema: {schema}\n' +
-                        f'Graphial Representation type: {output_type}'
-                    )
-
-                # Generate SQL
+                prompt = choose_prompt(output_type, schema)
                 chat_template = ChatPromptTemplate.from_messages(
                     [
                         SystemMessage(content=prompt),
@@ -293,7 +271,7 @@ class DashboardService:
                     session = Session()
 
                     if sql_query.strip().lower().startswith("select") and "LIMIT" not in sql_query:
-                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'     # hard coded limit for now :p
+                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'   
                     query = text(sql_query)
                     result = session.execute(query)
                     query_result = result_to_json(result)

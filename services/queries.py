@@ -12,7 +12,7 @@ import nest_asyncio
 from config import llm_config
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import os, yaml, json
+import os, json
 
 from utils.logger import logger
 from utils.user_queries import  result_to_json, load_prompts, choose_prompt, limit_query
@@ -63,17 +63,19 @@ class QueryService:
         
     async def execute_query(self, query_id, user: User):
 
-        # get query:
-        query_result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) ))
-        query = query_result.scalar_one_or_none()
-
-        # get schema
-        schema_result = await self.db.execute(select(Database.schema).where(Database.id == query.db_id))
-        schema = schema_result.scalar_one()
-        
-        # get connection string
-        connection_string_result = await self.db.execute(select(Database.db_connection_string).where(Database.id == query.db_id))
-        connection_string = connection_string_result.scalar_one()
+        # get query, schema, and connection string
+        query_result = await self.db.execute(
+            select(Query, Database.schema, Database.db_connection_string)
+            .join(Database, Query.db_id == Database.id)
+            .where(Query.id == query_id, Query.is_deleted == False)
+        )
+        result = query_result.one_or_none()
+        if not result:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Query with id {query_id} not found"
+            )
+        query, schema, connection_string = result
 
         prompts = load_prompts()
 
@@ -106,8 +108,7 @@ class QueryService:
                 Session = sessionmaker(bind=engine)
                 session = Session()
                 limit_query(sql_query)
-                query = text(sql_query)
-                result = session.execute(query)
+                result = session.execute(text(sql_query))
                 query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
@@ -171,11 +172,7 @@ class QueryService:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Query with id {query_id} not found')
             
             # Load prompts
-            with open("prompts/prompts.yaml", "r") as f:
-                prompts = yaml.safe_load(f)
-    
-            # Create LLM instance
-            llm = ChatOpenAI(model=model, temperature=0)
+            prompts = load_prompts()
             prompt = (
                 prompts["system_prompts"]["Insights"]+
                 f'User Query: {query_data.query_text}\n'+
@@ -193,7 +190,6 @@ class QueryService:
             logger.info(f'Generating insights for query id: {query_id}...')
 
             # generate insights using llm
-            llm = ChatOpenAI(model=model, temperature=0)
             response = await llm.agenerate([prompt])
             
             if response:
