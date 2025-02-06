@@ -211,6 +211,10 @@ class DashboardService:
     async def execute_dashboard_queries(self, dashboard_id: int, user: User):
     # execute dashobard queries
 
+        if (Dashboard.user_id!=user.id):
+            logger.info(f'Dashboard does not belong to {user.id=}')
+            return None
+
         # Get all queries of that dashboard
         queries_result = await self.db.execute(
         select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False))
@@ -407,6 +411,20 @@ class DashboardService:
         
     async def update_dashboard_layout(self, layout_data: UpdateQueriesRequest, user: User):
         # update dashboard layout
+
+        dashboard_result = await self.db.execute(
+            select(Dashboard).where(
+                (Dashboard.id == layout_data.dashboard_id) &
+                (Dashboard.user_id == user.id) &
+                (Dashboard.is_deleted == False)
+            )
+        )
+        dashboard = dashboard_result.scalar_one_or_none()
+
+        if not dashboard:
+            logger.warning(f"Dashboard with ID {layout_data.dashboard_id} not found or not accessible by user {user.id}")
+            return None
+
         try:
             for query_layout in layout_data.queries:
                 await self.db.execute(

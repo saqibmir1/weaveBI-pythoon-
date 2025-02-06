@@ -16,7 +16,7 @@ class QueryController:
 
     async def get_insights(query_id: int, use_web:bool, custom_instructions:QueryInsightsRequest, db: AsyncSession, user: User) -> str:
         query_service = QueryService(db=db)
-        insights = await query_service.get_insights(query_id, use_web, custom_instructions)
+        insights = await query_service.get_insights(query_id, use_web, custom_instructions, user)
         return insights
     
     async def link_query_to_dashboard(query_id: int, dashboard_id: int, db: AsyncSession, user: User):

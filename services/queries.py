@@ -182,9 +182,9 @@ class QueryService:
                 detail="Error occured while executing query"
             )
 
-    async def get_insights(self, query_id: int, use_web: bool, custom_instructions:str | None) -> str:
+    async def get_insights(self, query_id: int, use_web: bool, custom_instructions:str | None, user:User) -> str:
         try:
-            result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) )) 
+            result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) & (Query.user_id==user.id))) 
             query_data = result.scalar_one_or_none()
             logger.info(f'Selected {query_data.query_text} for insights')
             if not query_data:
@@ -359,12 +359,16 @@ class QueryService:
                 detail="Error occurred while fetching queries."
             )
 
-    async def get_queries_count(self,database_id:int,  user: User):
+    async def get_queries_count(self, database_id: int, user: User):
         try:
-            query = select(func.count()).select_from(Query).where(Query.db_id == database_id,Query.is_deleted == False)
+            query = select(func.count()).select_from(Query).where(
+                Query.db_id == database_id,
+                Query.is_deleted == False,
+                Query.user_id == user.id
+            )
 
             result = await self.db.execute(query)
-            count = result.scalar() 
+            count = result.scalar()
             return count
         except Exception as e:
             logger.error(f'Error fetching count - {str(e)}')
