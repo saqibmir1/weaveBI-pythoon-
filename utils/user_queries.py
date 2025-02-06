@@ -3,6 +3,7 @@ from datetime import datetime
 from config.prompt_config import settings as prompt_settings
 from schemas.databases import DbCredentials, UpdatedCredentials
 from decimal import Decimal
+import yaml
 
 def get_connection_string(db_credentials: DbCredentials | UpdatedCredentials):
     connection_strings = {
@@ -54,3 +55,32 @@ def result_to_json(result):
     return json_result
 
 
+def load_prompts():
+    with open("prompts/prompts.yaml", "r") as f:
+        prompts = yaml.safe_load(f)
+    return prompts
+
+def choose_prompt(output_type, schema):
+    prompts = load_prompts()
+    if output_type == "tabular":
+        prompt = (
+            prompts["system_prompts"]["primary"]+
+            f'Schema: {schema}\n'
+        )
+    elif output_type=="descriptive":
+        prompt = (
+            prompts["system_prompts"]["primary"]+
+            f'Schema: {schema}\n'
+        )
+    else:
+        prompt = (
+            prompts["system_prompts"]["graphical"]+
+            f'Schema: {schema}\n'+
+            f'Graphical Representation of {output_type}\n'
+        )
+    return prompt
+
+
+def limit_query(sql_query):
+    if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
+        return f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p

@@ -191,19 +191,3 @@ async def update_query(
             },
         )
     
-@QueryRoute.post("/test-query", summary="Test a query : Has nothing to do with dashboards; temporary route")
-async def test_query(
-    query_data: UserQueryRequest,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-
-    try:
-        data = await QueryController.test_query(query_data, db, user)
-        return data
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error occured while executing query: {e}"
-        )
