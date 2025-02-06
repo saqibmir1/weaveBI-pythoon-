@@ -7,9 +7,7 @@ from schemas.dashboards import DashboardCreate,  DashboardUpdate, UpdateQueriesR
 from schemas.generic_response_models import  ApiResponse
 from typing import List
 
-
 DashboardRoute = APIRouter()
-
 
 @DashboardRoute.post("/", response_model=ApiResponse, summary="Create a dashboard")
 async def create_dashboard(
@@ -36,20 +34,16 @@ async def create_dashboard(
             error=str(exc)
         )
 
-
-
-
-
-
 @DashboardRoute.get("/", response_model=ApiResponse, summary="Get all dashboards")
 async def get_dashboards(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     page: int = 1,
     limit:int = 10,
+    search:str = None
 ):
     try:
-        user_dashboards, total_count = await DashboardController.get_dashboards(user, db, page, limit)
+        user_dashboards, total_count = await DashboardController.get_dashboards(user, db, page, limit, search)
         return ApiResponse(
             success=True,
             message="Dashboards retrieved successfully.",
@@ -66,37 +60,6 @@ async def get_dashboards(
             message="An unexpected error occurred while retrieving dashboards.",
             error=str(exc)
         )
-    
-
-@DashboardRoute.get("/search",response_model=ApiResponse, summary="Search for dashboards")
-async def search_dashboards(
-    search: str,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    page: int = 1,
-    limit: int = 10
-):
-    try:
-        user_dashboards, total_count = await DashboardController.search_dashboards(user, db, search, page, limit)
-        return ApiResponse(
-            success=True,
-            message="Dashboards retrieved successfully.",
-            data={
-                "dashboards": user_dashboards,
-                "total_count": total_count,
-                "page": page,
-                "limit": limit
-            }
-        )
-    except Exception as exc:
-        return ApiResponse(
-            success=False,
-            message="An unexpected error occurred while retrieving dashboards.",
-            error=str(exc)
-        )
-
-    
-
 
 @DashboardRoute.get("/by-tags", summary="Get dashboards filtered by tags")
 async def get_dashboards_by_tags(
@@ -117,9 +80,6 @@ async def get_dashboards_by_tags(
             "error": str(exc)
         }
 
-
-    
-
 @DashboardRoute.get("/count", response_model=ApiResponse, summary="Get count of all dashboards")
 async def get_dashboards_count(
     user: User = Depends(get_current_user),
@@ -138,10 +98,6 @@ async def get_dashboards_count(
             message="An unexpected error occurred while retrieving dashboards.",
             error=str(exc)
         )
-
-
-
-
 
 @DashboardRoute.get("/dashboard/{id}", summary="Get a particular dashboard info")
 async def get_dashboard(
@@ -164,8 +120,6 @@ async def get_dashboard(
             message="An unexpected error occurred while retrieving the dashboard.",
             error=str(exc)
         )
-
-
 
 @DashboardRoute.get("/queries/{dashboard_id}", response_model=ApiResponse, summary="Get all queries associated with a dashboard")
 async def get_dashboard_queries(
@@ -193,9 +147,6 @@ async def get_dashboard_queries(
             message="An error occurred while retrieving queries for the dashboard.",
             error=str(exc)
         )
-
-
-
 
 @DashboardRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a dashboard")
 async def delete_dashboard(
@@ -225,10 +176,6 @@ async def delete_dashboard(
             error=str(exc)
         )
 
-
-
-
-
 @DashboardRoute.put("/", response_model=ApiResponse, summary="Update a dashboard")
 async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
     try:
@@ -243,35 +190,6 @@ async def update_dashboard(updated_dashboard:DashboardUpdate, user:User=Depends(
             message="Error occurred while updating the dashboard.",
             error=str(exc)
         )
-
-
-
-# @DashboardRoute.post("/queries", response_model=ApiResponse)
-# async def post_queries_for_dashboard(
-#     post_queries: PostQueriesRequest,
-#     db:AsyncSession=Depends(get_db),
-#     user:User=Depends(get_current_user)
-# ):
-#     try:
-#         queries = await DashboardController.post_queries_for_dashboard(post_queries, db, user)
-#         if not queries:
-#             return ApiResponse(
-#             success=False,
-#             message=f'Dashboard with ID {post_queries.dashboard_id} not found',
-#             error="Unable to add queries to dashboard"
-#             )
-#         return ApiResponse(
-#         success=True,
-#         message=f'Queries submitted successfully.',
-#         )
-#     except Exception as exc:
-#         return ApiResponse(
-#             success=False,
-#             message="An error occurred while adding queries to the dashboard.",
-#             error=str(exc)
-#         )
-
-
 
 @DashboardRoute.get("/refresh/{id}", response_model=ApiResponse, summary="Re-execute all queries in a dashboard parallely")
 async def execute_dashboard_queries(
@@ -292,7 +210,6 @@ async def execute_dashboard_queries(
             error=str(exc)
         )
 
-
 @DashboardRoute.get("/fetch-data/{id}", response_model=ApiResponse, summary="Fetch dashboard data (queries, layout, etc)")
 async def fetch_dashboard_data(
     id:int,
@@ -312,9 +229,6 @@ async def fetch_dashboard_data(
             message=f"An error occured while fetching dashboad data with ID {id}",
             error=str(exc)
         )
-
-
-
 
 @DashboardRoute.patch("/dashboard-query-layout", response_model=ApiResponse, summary="Update dashboard layout")
 async def update_dashboard_layout(
@@ -340,65 +254,4 @@ async def update_dashboard_layout(
             message="An error occurred while updating dashboard layout.",
             error=str(exc)
         )
-    
-
-
-
-# @DashboardRoute.put("/queries", response_model=ApiResponse)
-# async def update_queries(
-#     update_queries: UpdateQueriesRequest,
-#     db: AsyncSession = Depends(get_db),
-#     user: User = Depends(get_current_user)
-# ):
-#     try:
-#         success = await DashboardController.update_queries(update_queries, db, user)
-#         if not success:
-#             return ApiResponse(
-#                 success=False,
-#                 message="Failed to update queries.",
-#                 error="Unable to update queries for the dashboard."
-#             )
-#         return ApiResponse(
-#             success=True,
-#             message="Queries updated successfully."
-#         )
-#     except Exception as exc:
-#         return ApiResponse(
-#             success=False,
-#             message="An error occurred while updating queries.",
-#             error=str(exc)
-#         )
-
-
-
-# @DashboardRoute.get("/insights/{query_id}", response_model=ApiResponse)
-# async def get_insights(
-#     query_id: int,
-#     use_web:bool=False,
-#     request: InsightsRequest = Depends(),
-#     db: AsyncSession = Depends(get_db),
-#     current_user: User = Depends(get_current_user)
-# ):
-
-#     try:
-#         insights = await DashboardController.get_insights(
-#             query_id=query_id,
-#             use_web=use_web,
-#             custom_instructions=request.custom_instructions,
-#             db=db,
-#             user=current_user
-#         )
-#         return ApiResponse(
-#             success=True,
-#             message="Insights generated successfully",
-#             data={
-#                 "Insights": insights
-#             }
-#         )
-#     except Exception as exc:
-#         return ApiResponse(
-#             success=False,
-#             message=f"An error occured while generating insights for query {query_id}",
-#             error=str(exc)
-#         )
 

@@ -7,9 +7,7 @@ from schemas.generic_response_models import ApiResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from controllers.queries import QueryController
 
-
 QueryRoute = APIRouter()
-
 
 @QueryRoute.post("/", response_model=ApiResponse, summary="Save a query")
 async def save_query(
@@ -38,10 +36,6 @@ async def save_query(
             },
         )
 
-
-
-
-
 @QueryRoute.post("/execute", summary="Run a query")
 async def execute_query(
     query_id: int,
@@ -60,9 +54,6 @@ async def execute_query(
             detail="Error occured while executing query"
         )
     
-
-
-
 @QueryRoute.get("/insights/{id}", response_model=ApiResponse, summary="Get insights for an existing query")
 async def get_insights(
     id: int,
@@ -93,9 +84,6 @@ async def get_insights(
             message=f"An error occured while generating insights for query {id}",
             error=str(exc)
         )
-    
-
-
 
 @QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
 async def link_query_to_dashboard(
@@ -124,10 +112,6 @@ async def link_query_to_dashboard(
                 "error": {"message": f"{e}"},
                 },
             )
-    
-
-
-
 
 @QueryRoute.get("/fetch-database-queries/{database_id}", summary="Fetch all queries associated with a database.")
 async def fetch_database_queries(
@@ -136,9 +120,10 @@ async def fetch_database_queries(
     db:AsyncSession=Depends(get_db),
     page:int=1,
     limit:int=10,
+    search:str=None
     ):
     try:
-        queries, total_count = await QueryController.fetch_database_queries(database_id, user, db, page, limit)
+        queries, total_count = await QueryController.fetch_database_queries(database_id, user, db, page, limit, search)
         return {
             "queries": queries,
             "total_count": total_count,
@@ -148,28 +133,6 @@ async def fetch_database_queries(
 
     except Exception as exc:
         return exc
-    
-@QueryRoute.get("/search-database-queries/{database_id}", summary="Search queries associated with a database.")
-async def search_database_queries(
-    database_id:int,
-    user:User=Depends(get_current_user),
-    db:AsyncSession=Depends(get_db),
-    search_term:str=None,
-    page:int=1,
-    limit:int=10,
-    ):
-    try:
-        queries, total_count = await QueryController.search_database_queries(database_id, user, db, search_term, page, limit)
-        return {
-            "queries": queries,
-            "total_count": total_count,
-            "page": page,
-            "limit": limit
-    }
-
-    except Exception as exc:
-        return exc
-
     
 @QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of dashboards for current user")
 async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
@@ -181,8 +144,6 @@ async def get_queries_count(database_id:int, user:User=Depends(get_current_user)
     
     except Exception as exc:
         return exc
-    
-
 
 @QueryRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a query")
 async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
@@ -207,7 +168,6 @@ async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSess
             },
         )
     
-
 @QueryRoute.put("/", response_model=ApiResponse, summary="Update a query")
 async def update_query(
     post_queries: UpdateQueryRequest, 
@@ -231,7 +191,6 @@ async def update_query(
             },
         )
     
-
 @QueryRoute.post("/test-query", summary="Test a query : Has nothing to do with dashboards; temporary route")
 async def test_query(
     query_data: UserQueryRequest,
@@ -242,7 +201,6 @@ async def test_query(
     try:
         data = await QueryController.test_query(query_data, db, user)
         return data
-        
     
     except Exception as e:
         raise HTTPException(

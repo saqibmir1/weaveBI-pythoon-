@@ -32,7 +32,6 @@ class UserService:
         user = result.scalar_one_or_none()
         return user
     
-
     async def create_new_users(self,user:UserCreate):
         if await self.get_user_by_email(user.email):
             logger.error(f'{user.email=} already exists')
@@ -52,7 +51,6 @@ class UserService:
         await self.db.refresh(user_db)
         logger.info(f'New user {user.name} added to db successfully')
         return user_db
-
 
     async def update_user(self, updated_user:UserUpdate, user:User):
         result = await self.db.execute(
@@ -99,7 +97,6 @@ class UserService:
             )
             return False
 
-
     async def generate_otp(self, email:str):
         result = await self.db.execute(select(User).where(User.email==email))
         user = result.scalar_one_or_none()
@@ -141,10 +138,7 @@ class UserService:
           
             )
             logger.info(f"OTP sent to {email}")
-
             return otp
-        
-            
         
     async def reset_password(self, email:str, otp:str, new_password:str):
         redis_client = Redis(host=settings.redis_host, decode_responses=True)

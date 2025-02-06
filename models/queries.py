@@ -12,8 +12,6 @@ from sqlalchemy.orm import relationship
 from database.database import Base
 from models.dashboards import dashboard_queries
 
-
-
 # Query Table
 class Query(Base):
     __tablename__ = 'queries'

@@ -10,8 +10,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from database.database import Base
 
-
-
 class Database(Base):
     __tablename__ = 'databases'
 

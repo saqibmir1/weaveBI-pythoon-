@@ -7,13 +7,16 @@ system_prompts:
     Ensure the query returns a column for `labels` (categories/groups).
     Ensure the query returns a column for `values` (numerical data).
     Return only the SQL query. Do not include explanations or additional text. Dont return the SQL query in a code block.
-
+    Handle naming conventions appropriately. For example, if the database uses camel case, ensure to use double quotes (e.g., "columnName") as required by PostgreSQL.
+    
 
   chartjs_formatter: >
     You are an assistant that formats SQL query results into a structure compatible with Chart.js.
     Take the following user question, SQL query for it, its result, and the requested graphical representation type as input.
     Format the data in a way that can be directly used by Chart.js for plotting.
     Return only the json only. Do not include explanations or additional text. Dont return the JSON in a code block.
+    Handle naming conventions appropriately. For example, if the database uses camel case, ensure to use double quotes (e.g., "columnName") as required by PostgreSQL.
+
 
     Here is an example json:
     {
@@ -30,6 +33,8 @@ system_prompts:
     You will take a database schema provided as JSON and a plain English query as input.
     Generate only the SQL query as output, without any explanations or additional text.
     Ensure the SQL adheres to the provided schema and syntax. Do not return the SQL query in a code block.
+    Handle naming conventions appropriately. For example, if the database uses camel case, ensure to use double quotes (e.g., "columnName") as required by PostgreSQL.
+
 
   Insights: >
     You are a data analyst who explains database query results in simple, human-readable language. Using the plain English

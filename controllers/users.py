@@ -7,9 +7,7 @@ from schemas.users import UserCreate, UserUpdate
 from services.users import UserService
 from passlib.context import CryptContext
 
-
 hash_helper = CryptContext(schemes=["bcrypt"])
-
 
 class UserController:
     async def create_new_users(user:UserCreate, db:AsyncSession):
@@ -17,7 +15,6 @@ class UserController:
         user_create = await user_service.create_new_users(user=user)
         return sign_jwt(email=user_create.email)
     
-
     async def login_user(user_credentials: OAuth2PasswordRequestForm, db:AsyncSession):
         user_service = UserService(db=db)
         user: User = await user_service.get_user_by_email(user_credentials.username)
@@ -38,8 +35,6 @@ class UserController:
     async def update_user(updated_user:UserUpdate, user:User,db:AsyncSession):
           user_service = UserService(db)
           return await user_service.update_user(updated_user, user)
-
-
 
     async def delete_user(user: User, db: AsyncSession):
         user_service = UserService(db=db)

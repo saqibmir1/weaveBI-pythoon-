@@ -33,8 +33,6 @@ model = llm_config.settings.model
 config = RailsConfig.from_path("guardrails")
 guard_rail = RunnableRails(config=config)
 
-
-
 class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -92,7 +90,6 @@ class DashboardService:
                 else:
                     tag_id = existing_tag.id
 
-
                 # link dashboard_id -> tag_id
                 await self.db.execute(dashboard_tags.insert().values(dashboard_id=new_dashboard.id, tag_id=tag_id))
                 await self.db.commit()
@@ -109,15 +106,22 @@ class DashboardService:
                 detail="Error occurred while saving the dashboard."
             )
 
-
-    async def get_dashboards(self, user: User, page: int, limit: int):
+    async def get_dashboards(self, user: User, page: int, limit: int, search: str):
         try:
             offset = (page - 1) * limit
             
-            # Single query using a window function to get both data and count
-            query = select(Dashboard,func.count().over().label('total_count')).where(
+            # Base query
+            query = select(Dashboard, func.count().over().label('total_count')).where(
                 (Dashboard.user_id == user.id) &
-                (Dashboard.is_deleted == False)).limit(limit).offset(offset)
+                (Dashboard.is_deleted == False)
+            )
+            
+            # Add search filter if search term is provided
+            if search:
+                query = query.where(Dashboard.name.ilike(f"%{search}%"))
+            
+            # Add pagination
+            query = query.limit(limit).offset(offset)
             
             result = await self.db.execute(query)
             rows = result.all()
@@ -150,51 +154,6 @@ class DashboardService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while retrieving dashboards."
             )
-
-
-    async def search_dashboards(self, user: User, search: str, page: int, limit: int):
-        try:
-            offset = (page - 1) * limit
-            
-            # Single query using a window function to get both data and count
-            query = select(Dashboard,func.count().over().label('total_count')).where(
-                (Dashboard.user_id == user.id) &
-                (Dashboard.is_deleted == False) &
-                (Dashboard.name.ilike(f"%{search}%"))).limit(limit).offset(offset)
-            
-            result = await self.db.execute(query)
-            rows = result.all()
-            
-            if not rows:
-                return [], 0
-                
-            # Extract total count from first row
-            total_count = rows[0].total_count
-            
-            logger.info(f"Retrieved {len(rows)} dashboards from DB for user {user.id}")
-            
-            dashboards = [
-                {
-                    "id": row.Dashboard.id,
-                    "name": row.Dashboard.name,
-                    "description": row.Dashboard.description,
-                    "db_id": row.Dashboard.db_id,
-                    "created_on": row.Dashboard.created_at,
-                    "updated_at": row.Dashboard.updated_at
-                }
-                for row in rows
-            ]
-            
-            return dashboards, total_count
-            
-        except Exception as exc:
-            logger.error(f"Error retrieving dashboards - {exc}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error occurred while retrieving dashboards."
-            )
-
-
 
     async def get_dashboards_count(self, user: User):
         try:
@@ -231,7 +190,6 @@ class DashboardService:
             logger.info(f'Dashboard updated: with new name as {updated_dashboard.name} and new desc. as {updated_dashboard.description}')
             return True
         return False
-
 
     async def delete_dashboard(self, user:User, dashboard_id:int):
     # delete dashboard using id
@@ -383,7 +341,6 @@ class DashboardService:
             logger.error(f'Error in dashboard query exectution: {str(e)}')
             raise
 
-
     async def fetch_dashboard_data(self, dashboard_id: int, user: User):
         # fetch dashboard data ie. its queries, output, and their layout etc
         try:
@@ -448,7 +405,6 @@ class DashboardService:
             await self.db.rollback()
             return None
         
-
     async def update_dashboard_layout(self, layout_data: UpdateQueriesRequest, user: User):
         # update dashboard layout
         try:
@@ -503,7 +459,6 @@ class DashboardService:
                 detail="Error occurred while fetching queries."
             )
 
-
     async def get_dashboard(self, id: int, user: User):
         # get dashboard by id and its tags
         try:
@@ -543,7 +498,6 @@ class DashboardService:
                 detail="Error occurred while fetching dashboard."
             )
         
-
     async def get_dashboard_queries(self, dashboard_id: int, user: User, page: int, limit: int):
         # get all queries for a dashboard with pagination and total count
         try:
@@ -582,7 +536,6 @@ class DashboardService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
             )
-        
 
     async def get_dashboards_by_tags(self, tags: List[str], user: User, page: int, limit: int):
         offset = (page - 1) * limit
