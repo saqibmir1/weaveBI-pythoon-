@@ -60,23 +60,26 @@ def load_prompts():
         prompts = yaml.safe_load(f)
     return prompts
 
-def choose_prompt(output_type, schema):
+def choose_prompt(output_type, schema, database_provider):
     prompts = load_prompts()
     if output_type == "tabular":
         prompt = (
             prompts["system_prompts"]["primary"]+
-            f'Schema: {schema}\n'
+            f'Schema: {schema}\n'+
+            f'Database provider: {database_provider}\n'
         )
     elif output_type=="descriptive":
         prompt = (
             prompts["system_prompts"]["primary"]+
-            f'Schema: {schema}\n'
+            f'Schema: {schema}\n'+
+            f'Database provider: {database_provider}\n'
         )
     else:
         prompt = (
             prompts["system_prompts"]["graphical"]+
             f'Schema: {schema}\n'+
-            f'Graphical Representation of {output_type}\n'
+            f'Graphical Representation of {output_type}\n'+
+            f'Database provider: {database_provider}\n'
         )
     return prompt
 

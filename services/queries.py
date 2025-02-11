@@ -63,9 +63,9 @@ class QueryService:
         
     async def execute_query(self, query_id, user: User):
 
-        # get query, schema, and connection string
+        # get query, schema, connection string, and database provider
         query_result = await self.db.execute(
-            select(Query, Database.schema, Database.db_connection_string)
+            select(Query, Database.schema, Database.db_connection_string, Database.db_provider)
             .join(Database, Query.db_id == Database.id)
             .where(Query.id == query_id, Query.is_deleted == False)
         )
@@ -75,7 +75,7 @@ class QueryService:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Query with id {query_id} not found"
             )
-        query, schema, connection_string = result
+        query, schema, connection_string, database_provider = result
 
         prompts = load_prompts()
 
@@ -84,7 +84,7 @@ class QueryService:
             query_text = query.query_text
 
             # step 1: get sql query  based on type
-            prompt = choose_prompt(output_type, schema)
+            prompt = choose_prompt(output_type, schema, database_provider)
             chat_template = ChatPromptTemplate.from_messages(
                 [
                     SystemMessage(content=prompt),
@@ -399,3 +399,95 @@ class QueryService:
                 detail="Error occurred while updating query."
             )
         
+    async def run_query(self, post_queries: UserQueryRequest, user: User):
+        try:
+            query_text = post_queries.query_text
+            output_type = post_queries.output_type
+            database_id = post_queries.db_id
+
+            logger.info(f"Running query for user {user.id} on database {database_id}")
+
+            # get schema, connection string, and database provider
+            query_result = await self.db.execute(
+                select(Database.schema, Database.db_connection_string, Database.db_provider)
+                .where((Database.id == database_id) & (Database.user_id == user.id))
+            )
+            result = query_result.one_or_none()
+            if not result:
+                logger.error(f"Database with id {database_id} not found for user {user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Database not found"
+                )
+            schema, connection_string, database_provider = result
+
+            prompts = load_prompts()
+
+            # step 1: get sql query based on type
+            prompt = choose_prompt(output_type, schema, database_provider)
+            chat_template = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessage(content=prompt),
+                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
+                ]
+            )
+            output_parser = StrOutputParser()
+            llm_chain = chat_template | llm | output_parser
+            guard_rail_chain = guard_rail | llm_chain
+
+            sql_query = guard_rail_chain.invoke({"input": query_text})
+
+            # check if guardrails failed
+            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
+                sql_query = "Query blocked by guardrails"
+                final_data = "Query blocked by guardrails"
+                logger.warning(f"QueryService->run_query: {user.id=} Query blocked by guardrails")
+            else:
+                # step 2: execute sql query
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
+                limit_query(sql_query)
+                result = session.execute(text(sql_query))
+                query_result = result_to_json(result)
+
+                # Step 3: Process result based on type
+                if output_type == "tabular":
+                    final_data = query_result
+                elif output_type == "descriptive":
+                    insights_prompt = (
+                        prompts["system_prompts"]["descriptive_prompt"] +
+                        f'User Query: {query_text}\n' +
+                        f'Generated SQL Query: {sql_query}\n' +
+                        f'Query Output from database: {query_result}'
+                    )
+                    insights_response = await llm.agenerate([insights_prompt])
+                    final_data = insights_response.generations[0][0].text.strip()
+                else:
+                    chart_prompt = (
+                        prompts["system_prompts"]["chartjs_formatter"] +
+                        f'User Query: {query_text}\n' +
+                        f'Generated SQL Query: {sql_query}\n' +
+                        f'Query Output From Database: {query_result}\n' +
+                        f'Graphical Representation type: {output_type}'
+                    )
+                    chart_response = await llm.agenerate([chart_prompt])
+                    final_data = chart_response.generations[0][0].text.strip()
+
+            logger.info(f"Query executed successfully for user {user.id}")
+
+            # return api response
+            return {
+                "success": True,
+                "message": "Query executed successfully",
+                "data": {
+                    "generated_sql_query": sql_query,
+                    "query_result": final_data,
+                }
+            }
+        except Exception as e:
+            logger.error(f"{user.id=} Error occurred while executing query. Reason: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while executing query"
+            )
