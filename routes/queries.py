@@ -9,34 +9,34 @@ from controllers.queries import QueryController
 
 QueryRoute = APIRouter()
 
-@QueryRoute.post("/", response_model=ApiResponse, summary="Save a query")
-async def save_query(
-        post_queries: SaveQueryRequest,
-        db:AsyncSession = Depends(get_db),
-        user: User = Depends(get_current_user)
+@QueryRoute.post("/", response_model=ApiResponse, summary="Save multiple queries")
+async def save_queries(
+    post_queries: list[SaveQueryRequest],
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     try:
         success = await QueryController.save_queries(post_queries, db, user)
         if not success:
             return ApiResponse(
-                success=False,
-                message="Couldn't save query."
+            success=False,
+            message="Couldn't save queries."
             )
         return ApiResponse(
             success=True,
-            message="Query saved successfully."
-        )
+            message="Queries saved successfully."
+    )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "success": False,
-                "message": "Couldn't save query.",
-                "error": {"message": f"{e}"},
+            "success": False,
+            "message": "Couldn't save queries.",
+            "error": {"message": f"{e}"},
             },
         )
 
-@QueryRoute.post("/execute", summary="Run a query")
+@QueryRoute.post("/execute", summary="Run a query and save output in database")
 async def execute_query(
     query_id: int,
     db: AsyncSession = Depends(get_db),
@@ -191,19 +191,44 @@ async def update_query(
             },
         )
     
-@QueryRoute.post("/test-query", summary="Test a query : Has nothing to do with dashboards; temporary route")
-async def test_query(
-    query_data: UserQueryRequest,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
 
+@QueryRoute.post("/run", response_model=ApiResponse, summary="Execute a query and show output without saving it to the database")
+async def run_query(
+    post_queries: UserQueryRequest, 
+    user:User=Depends(get_current_user), 
+    db:AsyncSession=Depends(get_db)
+    ):
     try:
-        data = await QueryController.test_query(query_data, db, user)
-        return data
-    
-    except Exception as e:
+        data = await QueryController.run_query(post_queries, user, db)
+        return ApiResponse(
+            success=True,
+            message="Query executed successfully.",
+            data=data
+        )
+
+    except Exception as exc:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error occured while executing query: {e}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't execute query.",
+                "error": {"message": f"{exc}"},
+            },
+        )
+    
+
+@QueryRoute.get("/suggest" ,summary="Suggest queries using LLM based on database schema")
+async def suggest_queries(db_id: int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        queries = await QueryController.suggest_queries(db_id, user, db)
+        return queries
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't suggest queries.",
+                "error": {"message": f"{exc}"},
+            },
         )

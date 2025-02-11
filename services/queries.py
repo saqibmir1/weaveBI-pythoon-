@@ -3,54 +3,58 @@ from sqlalchemy import create_engine, select, text, update, func, insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers.string import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-from langchain_core.messages import SystemMessage
+
 from nemoguardrails import RailsConfig
 from nemoguardrails.integrations.langchain.runnable_rails import RunnableRails
 import nest_asyncio
 from config import llm_config
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import os, yaml, json
+import os, json
 
 from utils.logger import logger
-from utils.user_queries import  result_to_json_updated
+from utils.user_queries import  result_to_json, load_prompts, limit_query, generate_sql_query
 from config.llm_config import settings as llm_settings
 from models.databases import Database
 from models.queries import Query
 from models.users import User
 from models.dashboards import Dashboard, dashboard_queries
 from schemas.queries import  SaveQueryRequest, UpdateQueryRequest, UserQueryRequest
+from langchain_core.output_parsers import JsonOutputParser
 
 os.environ["OPENAI_API_KEY"] = llm_settings.api_key
 model = llm_config.settings.model
 nest_asyncio.apply()
 config = RailsConfig.from_path("guardrails")
 guard_rail = RunnableRails(config=config)
+llm = ChatOpenAI(model=model, temperature=0)
 
 
 class QueryService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def save_queries(self, post_queries: SaveQueryRequest, user: User):
+    async def save_queries(self, post_queries: list[SaveQueryRequest], user: User):
         try:
-            new_query = Query(
-                user_id= user.id,
-                db_id= post_queries.db_id,
-                query_name= post_queries.query_name,
-                query_text= post_queries.query_text,
-                output_type= post_queries.output_type,
-            )
-            self.db.add(new_query)
+            new_queries = [
+                Query(
+                    user_id=user.id,
+                    db_id=query.db_id,
+                    query_name=query.query_name,
+                    query_text=query.query_text,
+                    output_type=query.output_type,
+                )
+                for query in post_queries
+            ]
+            self.db.add_all(new_queries)
             await self.db.commit()
-            await self.db.refresh(new_query)
-            logger.info('Query saved in db')
+            for new_query in new_queries:
+                await self.db.refresh(new_query)
+            logger.info('Queries saved in db')
             return True
         
         except Exception as e:
-            logger.error(f"Failed to save query for user_id={user.id}, db_id={post_queries.db_id}, query_name={post_queries.query_name}. Reason: {e}.")
+            logger.error(f"Failed to save queries for user_id={user.id}. Reason: {e}.")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -58,83 +62,42 @@ class QueryService:
                     "message": "Couldn't save queries.",
                     "error": f"{e}",
                 },
-            ) 
+            )
         
     async def execute_query(self, query_id, user: User):
 
-        # get query:
-        query_result = await self.db.execute(select(Query).where( (Query.id==query_id) & (Query.is_deleted==False) ))
-        query = query_result.scalar_one_or_none()
-
-        # get schema
-        schema_result = await self.db.execute(select(Database.schema).where(Database.id == query.db_id))
-        schema = schema_result.scalar_one()
-        
-
-        # get connection string
-        connection_string_result = await self.db.execute(select(Database.db_connection_string).where(Database.id == query.db_id))
-        connection_string = connection_string_result.scalar_one()
-
-          # Load prompts
-        with open("prompts/prompts.yaml", "r") as f:
-            prompts = yaml.safe_load(f)
-
-        # create LLM Instance
-        llm = ChatOpenAI(model=model, temperature=0)
+        # get query, schema, connection string, and database provider
+        query_result = await self.db.execute(
+            select(Query, Database.schema, Database.db_connection_string, Database.db_provider)
+            .join(Database, Query.db_id == Database.id)
+            .where(Query.id == query_id, Query.is_deleted == False)
+        )
+        result = query_result.one_or_none()
+        if not result:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Query with id {query_id} not found"
+            )
+        query, schema, connection_string, database_provider = result
 
         try:
             output_type = query.output_type
             query_text = query.query_text
 
-            # step 1: get sql query  based on type
-            if output_type == "tabular":
-                prompt = (
-                    prompts["system_prompts"]["primary"]+
-                    f'Schema: {schema}\n'
-                )
-            elif output_type=="descriptive":
-                prompt = (
-                    prompts["system_prompts"]["primary"]+
-                    f'Schema: {schema}\n'
-                )
-            else:
-                prompt = (
-                    prompts["system_prompts"]["graphical"]+
-                    f'Schema: {schema}\n'+
-                    f'Graphical Representation of {output_type}\n'
-                )
+            # step 1: get sql query based on type
+            sql_query, final_data = await generate_sql_query(llm, guard_rail, query_text, output_type, schema, database_provider)
 
-            # Generate SQL
-            chat_template = ChatPromptTemplate.from_messages(
-                [
-                    SystemMessage(content=prompt),
-                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
-                ]
-            )
-            output_parser = StrOutputParser()
-            llm_chain = chat_template | llm | output_parser
-            guard_rail_chain = guard_rail | llm_chain
-
-            sql_query = guard_rail_chain.invoke({"input": query_text})
-
-            # check if guardrails failed
-            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
-                sql_query = "Query blocked by guardrails"
-                final_data = "Query blocked by guardrails"
-                logger.warning(f"QueryService->execute_query: {user.id=} Query blocked by guardrails")
-            else:
+            if final_data is None:
                 # step 2: execute sql query
                 engine = create_engine(connection_string)
                 Session = sessionmaker(bind=engine)
                 session = Session()
-
-                if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
-                    sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
-                query = text(sql_query)
-                result = session.execute(query)
-                query_result = result_to_json_updated(result)
+                limit_query(sql_query)
+                result = session.execute(text(sql_query))
+                query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
+                prompts = load_prompts()
                 if output_type == "tabular":
                     final_data = query_result
                 elif output_type == "descriptive":
@@ -155,12 +118,16 @@ class QueryService:
                         f'Graphical Representation type: {output_type}'
                     )
                     chart_response = await llm.agenerate([chart_prompt])
-                    final_data = chart_response.generations[0][0].text.strip()
+                    final_data = json.loads(chart_response.generations[0][0].text.strip())
 
-             # put final data and generated sql query in queries table
+
+            # put final data and generated sql query in queries table
             serialized_data = json.dumps(final_data)
-            await self.db.execute(update(Query).where(Query.id == query_id).values(data=serialized_data))
-            await self.db.execute(update(Query).where(Query.id == query_id).values(generated_sql_query=sql_query))
+            await self.db.execute(
+                update(Query)
+                .where(Query.id == query_id)
+                .values(data=serialized_data, generated_sql_query=sql_query)
+            )
             await self.db.commit()
 
             logger.info(f'Output stored in db')
@@ -172,7 +139,7 @@ class QueryService:
                 "data": {
                     "generated_sql_query": sql_query,
                     "query_result": final_data,
-            }
+                }
             }
         
         except Exception as e:
@@ -192,11 +159,7 @@ class QueryService:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Query with id {query_id} not found')
             
             # Load prompts
-            with open("prompts/prompts.yaml", "r") as f:
-                prompts = yaml.safe_load(f)
-    
-            # Create LLM instance
-            llm = ChatOpenAI(model=model, temperature=0)
+            prompts = load_prompts()
             prompt = (
                 prompts["system_prompts"]["Insights"]+
                 f'User Query: {query_data.query_text}\n'+
@@ -214,7 +177,6 @@ class QueryService:
             logger.info(f'Generating insights for query id: {query_id}...')
 
             # generate insights using llm
-            llm = ChatOpenAI(model=model, temperature=0)
             response = await llm.agenerate([prompt])
             
             if response:
@@ -424,81 +386,42 @@ class QueryService:
                 detail="Error occurred while updating query."
             )
         
-#################################### temp #####################################################
-    async def test_query(self, query_data:UserQueryRequest, user: User):
-
-        # get query:
-        output_type = query_data.output_type
-        query_text = query_data.query_text
-        db_id = query_data.db_id
-
-        # get schema
-        schema_result = await self.db.execute(select(Database.schema).where(Database.id == db_id))
-        schema = schema_result.scalar_one()
-        
-
-        # get connection string
-        connection_string_result = await self.db.execute(select(Database.db_connection_string).where(Database.id == db_id))
-        connection_string = connection_string_result.scalar_one()
-
-          # Load prompts
-        with open("prompts/prompts.yaml", "r") as f:
-            prompts = yaml.safe_load(f)
-
-        # create LLM Instance
-        llm = ChatOpenAI(model=model, temperature=0)
-
+    async def run_query(self, post_queries: UserQueryRequest, user: User):
         try:
+            query_text = post_queries.query_text
+            output_type = post_queries.output_type
+            database_id = post_queries.db_id
 
-            # step 1: get sql query  based on type
-            if output_type == "tabular":
-                prompt = (
-                    prompts["system_prompts"]["primary"]+
-                    f'Schema: {schema}\n'
-                )
-            elif output_type=="descriptive":
-                prompt = (
-                    prompts["system_prompts"]["primary"]+
-                    f'Schema: {schema}\n'
-                )
-            else:
-                prompt = (
-                    prompts["system_prompts"]["graphical"]+
-                    f'Schema: {schema}\n'+
-                    f'Graphical Representation of {output_type}\n'
-                )
+            logger.info(f"Running query for user {user.id} on database {database_id}")
 
-            # Generate SQL
-            chat_template = ChatPromptTemplate.from_messages(
-                [
-                    SystemMessage(content=prompt),
-                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
-                ]
+            # get schema, connection string, and database provider
+            query_result = await self.db.execute(
+                select(Database.schema, Database.db_connection_string, Database.db_provider)
+                .where((Database.id == database_id) & (Database.user_id == user.id))
             )
-            output_parser = StrOutputParser()
-            llm_chain = chat_template | llm | output_parser
-            guard_rail_chain = guard_rail | llm_chain
+            result = query_result.one_or_none()
+            if not result:
+                logger.error(f"Database with id {database_id} not found for user {user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Database not found"
+                )
+            schema, connection_string, database_provider = result
 
-            sql_query = guard_rail_chain.invoke({"input": query_text})
+            # step 1: get sql query based on type
+            sql_query, final_data = await generate_sql_query(llm, guard_rail, query_text, output_type, schema, database_provider)
 
-            # check if guardrails failed
-            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
-                sql_query = "Query blocked by guardrails"
-                final_data = "Query blocked by guardrails"
-                logger.warning(f"QueryService->execute_query: {user.id=} Query blocked by guardrails")
-            else:
+            if final_data is None:
                 # step 2: execute sql query
                 engine = create_engine(connection_string)
                 Session = sessionmaker(bind=engine)
                 session = Session()
-
-                if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
-                    sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
-                query = text(sql_query)
-                result = session.execute(query)
-                query_result = result_to_json_updated(result)
+                limit_query(sql_query)
+                result = session.execute(text(sql_query))
+                query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
+                prompts = load_prompts()
                 if output_type == "tabular":
                     final_data = query_result
                 elif output_type == "descriptive":
@@ -519,18 +442,51 @@ class QueryService:
                         f'Graphical Representation type: {output_type}'
                     )
                     chart_response = await llm.agenerate([chart_prompt])
-                    final_data = chart_response.generations[0][0].text.strip()
+                    final_data = json.loads(chart_response.generations[0][0].text.strip())
+                    
 
+            logger.info(f"Query executed successfully for user {user.id}")
 
+            # return api response
             return {
-                "generated_sql_query": sql_query,
-                "query_result": final_data,
+                    "generated_sql_query": sql_query,
+                    "query_result": final_data,
             }
-          
-        
         except Exception as e:
-            logger.error(f"{user.id=} Error occured while executing query. Reason: {e}")
+            logger.error(f"{user.id=} Error occurred while executing query. Reason: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error occured while executing query"
+                detail="Error occurred while executing query"
+            )
+        
+    async def suggest_queries(self, db_id: int, user: User):
+        try:
+            # get schema
+            query_result = await self.db.execute(
+                select(Database.schema)
+                .where((Database.id == db_id) & (Database.user_id == user.id))
+            )
+            result = query_result.one_or_none()
+            if not result:
+                logger.error(f"Database with id {db_id} not found for user {user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Database not found"
+                )
+            schema = result.schema
+
+            # Load prompts
+            prompts = load_prompts()
+            prompt = prompts["system_prompts"]["Generate_queries"] + f"\nSchema: {schema}"
+
+            # Generate queries using llm
+            chain = llm | JsonOutputParser()
+            response = await chain.ainvoke(prompt)
+            return response
+
+        except Exception as e:
+            logger.error(f"Error suggesting queries: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An error occurred while suggesting queries: {str(e)}"
             )

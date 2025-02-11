@@ -1,6 +1,5 @@
 import os
 import json
-import yaml
 import asyncio
 
 from typing import List
@@ -23,7 +22,7 @@ from models.tags import Tag
 from models.dashboards import Dashboard, dashboard_queries, dashboard_tags
 from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
 from utils.logger import logger
-from utils.user_queries import result_to_json_updated
+from utils.user_queries import result_to_json, load_prompts, choose_prompt
 from config.llm_config import settings as llm_settings
 from config import llm_config
 
@@ -211,10 +210,6 @@ class DashboardService:
     async def execute_dashboard_queries(self, dashboard_id: int, user: User):
     # execute dashobard queries
 
-        if (Dashboard.user_id!=user.id):
-            logger.info(f'Dashboard does not belong to {user.id=}')
-            return None
-
         # Get all queries of that dashboard
         queries_result = await self.db.execute(
         select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False))
@@ -224,22 +219,22 @@ class DashboardService:
             logger.warning(f"No queries found for dashboard with ID {dashboard_id}")
             return None
 
-        # Fetch db schema
-        schema_result = await self.db.execute(select(Database.schema).join(Dashboard, Dashboard.db_id == Database.id).where(
-        Dashboard.id == dashboard_id,
-        Database.is_deleted == False))
-        schema = schema_result.scalar_one_or_none()
+        # Fetch db schema, connection string, and database provider
+        db_info_result = await self.db.execute(
+            select(Database.schema, Database.db_connection_string, Database.db_provider)
+            .join(Dashboard, Dashboard.db_id == Database.id)
+            .where(Dashboard.id == dashboard_id, Database.is_deleted == False)
+        )
+        db_info = db_info_result.one_or_none()
 
-        # fetch connection string
-        connection_string_result = await self.db.execute(select(Database.db_connection_string).join(Dashboard, Dashboard.db_id == Database.id).where(
-        Dashboard.id == dashboard_id,
-        Database.is_deleted == False))
+        if not db_info:
+            logger.warning(f"Database information not found for dashboard ID {dashboard_id}")
+            return None
 
-        connection_string = connection_string_result.scalar_one_or_none()
+        schema, connection_string, database_provider = db_info
 
-          # Load prompts
-        with open("prompts/prompts.yaml", "r") as f:
-            prompts = yaml.safe_load(f)
+        # Load prompts
+        prompts = load_prompts()
     
         # Create LLM instance
         llm = ChatOpenAI(model=model, temperature=0)
@@ -251,24 +246,7 @@ class DashboardService:
                 query_id = query.id
 
                 # Step 1: Get SQL query based on type
-                if output_type == "tabular":
-                    prompt = (
-                        prompts["system_prompts"]["primary"] +
-                        f'Schema: {schema}\n'
-                    )
-                elif output_type == "descriptive":
-                    prompt = (
-                        prompts["system_prompts"]["primary"] +
-                        f'Schema: {schema}\n'
-                    )
-                else:
-                    prompt = (
-                        prompts["system_prompts"]["graphical"] +
-                        f'Schema: {schema}\n' +
-                        f'Graphial Representation type: {output_type}'
-                    )
-
-                # Generate SQL
+                prompt = choose_prompt(output_type, schema, database_provider)
                 chat_template = ChatPromptTemplate.from_messages(
                     [
                         SystemMessage(content=prompt),
@@ -293,10 +271,10 @@ class DashboardService:
                     session = Session()
 
                     if sql_query.strip().lower().startswith("select") and "LIMIT" not in sql_query:
-                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'     # hard coded limit for now :p
+                        sql_query = f'{sql_query.strip().rstrip(";")} LIMIT 100;'   
                     query = text(sql_query)
                     result = session.execute(query)
-                    query_result = result_to_json_updated(result)
+                    query_result = result_to_json(result)
 
                     # Step 3: Process result based on type
                     if output_type == "tabular":
@@ -319,7 +297,7 @@ class DashboardService:
                             f'Graphical Representation type: {output_type}'
                         )
                         chart_response = await llm.agenerate([chart_prompt])
-                        final_data = chart_response.generations[0][0].text.strip()
+                        final_data = json.loads(chart_response.generations[0][0].text.strip())
 
                 # Put final data and generated SQL query in table
                 serialized_data = json.dumps(final_data)
@@ -386,7 +364,7 @@ class DashboardService:
                     "query_name": query.query_name,
                     "query_text": query.query_text,
                     "output_type": query.output_type,
-                    "data": query.data,
+                    "data": json.loads(query.data) if query.data else None,
                     "updated_at": query.updated_at,
                     "created_at": query.created_at,
                     # Add layout information

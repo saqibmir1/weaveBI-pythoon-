@@ -1,8 +1,8 @@
 ## Prerequisites
 
 - Python 3.12
-- A running instance of a PostgreSQL .
-- A running instance of redis (optional).
+- PostgreSQL.
+- redis (optional).
 ---
 
 ## Installation
@@ -28,7 +28,6 @@ Note: uv will install requirements on app startup so this step is optional
 ```bash
 $  cp .env.sample .env
 ```
-Update tthe values according to your setup.
 
 
 ### Step 3: Initialize the Database
