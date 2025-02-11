@@ -68,19 +68,19 @@ def choose_prompt(output_type, schema, database_provider):
     if output_type == "tabular":
         prompt = (
             prompts["system_prompts"]["primary"]+
-            f'Schema: {schema}\n'+
+            f'\nSchema: {schema}\n'+
             f'Database provider: {database_provider}\n'
         )
     elif output_type=="descriptive":
         prompt = (
             prompts["system_prompts"]["primary"]+
-            f'Schema: {schema}\n'+
+            f'\nSchema: {schema}\n'+
             f'Database provider: {database_provider}\n'
         )
     else:
         prompt = (
             prompts["system_prompts"]["graphical"]+
-            f'Schema: {schema}\n'+
+            f'\nSchema: {schema}\n'+
             f'Graphical Representation of {output_type}\n'+
             f'Database provider: {database_provider}\n'
         )
@@ -105,6 +105,7 @@ async def generate_sql_query(llm, guard_rail, query_text, output_type, schema, d
     guard_rail_chain = guard_rail | llm_chain
 
     sql_query = guard_rail_chain.invoke({"input": query_text})
+    print(f'Generated SQL query: {sql_query}')
 
     # check if guardrails failed
     if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":

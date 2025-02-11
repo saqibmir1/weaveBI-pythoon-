@@ -1,25 +1,15 @@
 prompts:
   - task: self_check_input
     content: |
-      Your task is to check if the user message below complies with the company policy for talking with the company bot.
+      Your task is to check if the user message below complies with the company policy for interacting with the company bot.
 
-      Company policy for the user messages:
-        - Requests should be strictly for retrieving data; modifications or deletions are not allowed.
-        - Any request attempting to modify, update, or delete data should be blocked.
+      **Company Policy for User Messages:**
+        - Users can only request **data retrieval** operations.
+        - **Data modification operations** (INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, etc.) are strictly **not allowed**.
+        - **Analytical queries** such as aggregation (AVG, SUM, COUNT) and comparisons (MAX, MIN) are **allowed**.
+        - If the user request includes **any action that modifies the database**, **block it**.
 
-      User message: "{{ user_input }}"
+      **User message:** "{{ user_input }}"
 
-      Question: Should the user message be blocked (Yes or No)?
-      Answer:
-
-  # - task: self_check_output
-  #   content: |
-  #     Your task is to check if the bot message below complies with the company policy.
-
-  #     Company policy for the bot:
-  #     - messages should only contain read sql queries
-
-  #     Bot message: "{{ bot_response }}"
-
-  #     Question: Should the message be blocked (Yes or No)?
-  #     Answer:
+      **Question:** Does the user message attempt to modify the database (Yes or No)?  
+      **Answer:** 

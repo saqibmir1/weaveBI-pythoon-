@@ -20,6 +20,7 @@ from models.queries import Query
 from models.users import User
 from models.dashboards import Dashboard, dashboard_queries
 from schemas.queries import  SaveQueryRequest, UpdateQueryRequest, UserQueryRequest
+from langchain_core.output_parsers import JsonOutputParser
 
 os.environ["OPENAI_API_KEY"] = llm_settings.api_key
 model = llm_config.settings.model
@@ -442,16 +443,44 @@ class QueryService:
 
             # return api response
             return {
-                "success": True,
-                "message": "Query executed successfully",
-                "data": {
                     "generated_sql_query": sql_query,
                     "query_result": final_data,
-                }
             }
         except Exception as e:
             logger.error(f"{user.id=} Error occurred while executing query. Reason: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while executing query"
+            )
+        
+    async def suggest_queries(self, db_id: int, user: User):
+        try:
+            # get schema
+            query_result = await self.db.execute(
+                select(Database.schema)
+                .where((Database.id == db_id) & (Database.user_id == user.id))
+            )
+            result = query_result.one_or_none()
+            if not result:
+                logger.error(f"Database with id {db_id} not found for user {user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Database not found"
+                )
+            schema = result.schema
+
+            # Load prompts
+            prompts = load_prompts()
+            prompt = prompts["system_prompts"]["Generate_queries"] + f"\nSchema: {schema}"
+
+            # Generate queries using llm
+            chain = llm | JsonOutputParser()
+            response = await chain.ainvoke(prompt)
+            return response
+
+        except Exception as e:
+            logger.error(f"Error suggesting queries: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An error occurred while suggesting queries: {str(e)}"
             )

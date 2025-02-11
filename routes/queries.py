@@ -215,3 +215,20 @@ async def run_query(
                 "error": {"message": f"{exc}"},
             },
         )
+    
+
+@QueryRoute.get("/suggest" ,summary="Suggest queries using LLM based on database schema")
+async def suggest_queries(db_id: int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        queries = await QueryController.suggest_queries(db_id, user, db)
+        return queries
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't suggest queries.",
+                "error": {"message": f"{exc}"},
+            },
+        )

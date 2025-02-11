@@ -46,3 +46,7 @@ class QueryController:
     async def run_query(post_queries: UserQueryRequest, user:User, db: AsyncSession):
         query_service = QueryService(db=db)
         return await query_service.run_query(post_queries, user)
+    
+    async def suggest_queries(db_id:int, user: User, db: AsyncSession):
+        query_service = QueryService(db=db)
+        return await query_service.suggest_queries(db_id, user)
