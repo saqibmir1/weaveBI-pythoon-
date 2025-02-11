@@ -219,18 +219,19 @@ class DashboardService:
             logger.warning(f"No queries found for dashboard with ID {dashboard_id}")
             return None
 
-        # Fetch db schema
-        schema_result = await self.db.execute(select(Database.schema).join(Dashboard, Dashboard.db_id == Database.id).where(
-        Dashboard.id == dashboard_id,
-        Database.is_deleted == False))
-        schema = schema_result.scalar_one_or_none()
+        # Fetch db schema, connection string, and database provider
+        db_info_result = await self.db.execute(
+            select(Database.schema, Database.db_connection_string, Database.db_provider)
+            .join(Dashboard, Dashboard.db_id == Database.id)
+            .where(Dashboard.id == dashboard_id, Database.is_deleted == False)
+        )
+        db_info = db_info_result.one_or_none()
 
-        # fetch connection string
-        connection_string_result = await self.db.execute(select(Database.db_connection_string).join(Dashboard, Dashboard.db_id == Database.id).where(
-        Dashboard.id == dashboard_id,
-        Database.is_deleted == False))
+        if not db_info:
+            logger.warning(f"Database information not found for dashboard ID {dashboard_id}")
+            return None
 
-        connection_string = connection_string_result.scalar_one_or_none()
+        schema, connection_string, database_provider = db_info
 
         # Load prompts
         prompts = load_prompts()
@@ -245,7 +246,7 @@ class DashboardService:
                 query_id = query.id
 
                 # Step 1: Get SQL query based on type
-                prompt = choose_prompt(output_type, schema)
+                prompt = choose_prompt(output_type, schema, database_provider)
                 chat_template = ChatPromptTemplate.from_messages(
                     [
                         SystemMessage(content=prompt),
@@ -296,7 +297,7 @@ class DashboardService:
                             f'Graphical Representation type: {output_type}'
                         )
                         chart_response = await llm.agenerate([chart_prompt])
-                        final_data = chart_response.generations[0][0].text.strip()
+                        final_data = json.loads(chart_response.generations[0][0].text.strip())
 
                 # Put final data and generated SQL query in table
                 serialized_data = json.dumps(final_data)
@@ -363,7 +364,7 @@ class DashboardService:
                     "query_name": query.query_name,
                     "query_text": query.query_text,
                     "output_type": query.output_type,
-                    "data": query.data,
+                    "data": json.loads(query.data) if query.data else None,
                     "updated_at": query.updated_at,
                     "created_at": query.created_at,
                     # Add layout information

@@ -118,7 +118,8 @@ class QueryService:
                         f'Graphical Representation type: {output_type}'
                     )
                     chart_response = await llm.agenerate([chart_prompt])
-                    final_data = chart_response.generations[0][0].text.strip()
+                    final_data = json.loads(chart_response.generations[0][0].text.strip())
+
 
             # put final data and generated sql query in queries table
             serialized_data = json.dumps(final_data)
@@ -441,7 +442,8 @@ class QueryService:
                         f'Graphical Representation type: {output_type}'
                     )
                     chart_response = await llm.agenerate([chart_prompt])
-                    final_data = chart_response.generations[0][0].text.strip()
+                    final_data = json.loads(chart_response.generations[0][0].text.strip())
+                    
 
             logger.info(f"Query executed successfully for user {user.id}")
 
