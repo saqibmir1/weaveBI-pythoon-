@@ -34,23 +34,27 @@ class QueryService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def save_queries(self, post_queries: SaveQueryRequest, user: User):
+    async def save_queries(self, post_queries: list[SaveQueryRequest], user: User):
         try:
-            new_query = Query(
-                user_id= user.id,
-                db_id= post_queries.db_id,
-                query_name= post_queries.query_name,
-                query_text= post_queries.query_text,
-                output_type= post_queries.output_type,
-            )
-            self.db.add(new_query)
+            new_queries = [
+                Query(
+                    user_id=user.id,
+                    db_id=query.db_id,
+                    query_name=query.query_name,
+                    query_text=query.query_text,
+                    output_type=query.output_type,
+                )
+                for query in post_queries
+            ]
+            self.db.add_all(new_queries)
             await self.db.commit()
-            await self.db.refresh(new_query)
-            logger.info('Query saved in db')
+            for new_query in new_queries:
+                await self.db.refresh(new_query)
+            logger.info('Queries saved in db')
             return True
         
         except Exception as e:
-            logger.error(f"Failed to save query for user_id={user.id}, db_id={post_queries.db_id}, query_name={post_queries.query_name}. Reason: {e}.")
+            logger.error(f"Failed to save queries for user_id={user.id}. Reason: {e}.")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -58,7 +62,7 @@ class QueryService:
                     "message": "Couldn't save queries.",
                     "error": f"{e}",
                 },
-            ) 
+            )
         
     async def execute_query(self, query_id, user: User):
 

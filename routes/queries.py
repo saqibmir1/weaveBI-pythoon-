@@ -9,30 +9,30 @@ from controllers.queries import QueryController
 
 QueryRoute = APIRouter()
 
-@QueryRoute.post("/", response_model=ApiResponse, summary="Save a query")
-async def save_query(
-        post_queries: SaveQueryRequest,
-        db:AsyncSession = Depends(get_db),
-        user: User = Depends(get_current_user)
+@QueryRoute.post("/", response_model=ApiResponse, summary="Save multiple queries")
+async def save_queries(
+    post_queries: list[SaveQueryRequest],
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     try:
         success = await QueryController.save_queries(post_queries, db, user)
         if not success:
             return ApiResponse(
-                success=False,
-                message="Couldn't save query."
+            success=False,
+            message="Couldn't save queries."
             )
         return ApiResponse(
             success=True,
-            message="Query saved successfully."
-        )
+            message="Queries saved successfully."
+    )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "success": False,
-                "message": "Couldn't save query.",
-                "error": {"message": f"{e}"},
+            "success": False,
+            "message": "Couldn't save queries.",
+            "error": {"message": f"{e}"},
             },
         )
 
