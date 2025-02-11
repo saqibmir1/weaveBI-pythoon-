@@ -3,9 +3,7 @@ from sqlalchemy import create_engine, select, text, update, func, insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers.string import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-from langchain_core.messages import SystemMessage
+
 from nemoguardrails import RailsConfig
 from nemoguardrails.integrations.langchain.runnable_rails import RunnableRails
 import nest_asyncio
@@ -15,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import os, json
 
 from utils.logger import logger
-from utils.user_queries import  result_to_json, load_prompts, choose_prompt, limit_query
+from utils.user_queries import  result_to_json, load_prompts, limit_query, generate_sql_query
 from config.llm_config import settings as llm_settings
 from models.databases import Database
 from models.queries import Query
@@ -77,32 +75,14 @@ class QueryService:
             )
         query, schema, connection_string, database_provider = result
 
-        prompts = load_prompts()
-
         try:
             output_type = query.output_type
             query_text = query.query_text
 
-            # step 1: get sql query  based on type
-            prompt = choose_prompt(output_type, schema, database_provider)
-            chat_template = ChatPromptTemplate.from_messages(
-                [
-                    SystemMessage(content=prompt),
-                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
-                ]
-            )
-            output_parser = StrOutputParser()
-            llm_chain = chat_template | llm | output_parser
-            guard_rail_chain = guard_rail | llm_chain
+            # step 1: get sql query based on type
+            sql_query, final_data = await generate_sql_query(llm, guard_rail, query_text, output_type, schema, database_provider)
 
-            sql_query = guard_rail_chain.invoke({"input": query_text})
-
-            # check if guardrails failed
-            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
-                sql_query = "Query blocked by guardrails"
-                final_data = "Query blocked by guardrails"
-                logger.warning(f"QueryService->execute_query: {user.id=} Query blocked by guardrails")
-            else:
+            if final_data is None:
                 # step 2: execute sql query
                 engine = create_engine(connection_string)
                 Session = sessionmaker(bind=engine)
@@ -112,6 +92,7 @@ class QueryService:
                 query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
+                prompts = load_prompts()
                 if output_type == "tabular":
                     final_data = query_result
                 elif output_type == "descriptive":
@@ -134,7 +115,7 @@ class QueryService:
                     chart_response = await llm.agenerate([chart_prompt])
                     final_data = chart_response.generations[0][0].text.strip()
 
-             # put final data and generated sql query in queries table
+            # put final data and generated sql query in queries table
             serialized_data = json.dumps(final_data)
             await self.db.execute(
                 update(Query)
@@ -152,7 +133,7 @@ class QueryService:
                 "data": {
                     "generated_sql_query": sql_query,
                     "query_result": final_data,
-            }
+                }
             }
         
         except Exception as e:
@@ -421,28 +402,10 @@ class QueryService:
                 )
             schema, connection_string, database_provider = result
 
-            prompts = load_prompts()
-
             # step 1: get sql query based on type
-            prompt = choose_prompt(output_type, schema, database_provider)
-            chat_template = ChatPromptTemplate.from_messages(
-                [
-                    SystemMessage(content=prompt),
-                    HumanMessagePromptTemplate.from_template("User question: \n{input}"),
-                ]
-            )
-            output_parser = StrOutputParser()
-            llm_chain = chat_template | llm | output_parser
-            guard_rail_chain = guard_rail | llm_chain
+            sql_query, final_data = await generate_sql_query(llm, guard_rail, query_text, output_type, schema, database_provider)
 
-            sql_query = guard_rail_chain.invoke({"input": query_text})
-
-            # check if guardrails failed
-            if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
-                sql_query = "Query blocked by guardrails"
-                final_data = "Query blocked by guardrails"
-                logger.warning(f"QueryService->run_query: {user.id=} Query blocked by guardrails")
-            else:
+            if final_data is None:
                 # step 2: execute sql query
                 engine = create_engine(connection_string)
                 Session = sessionmaker(bind=engine)
@@ -452,6 +415,7 @@ class QueryService:
                 query_result = result_to_json(result)
 
                 # Step 3: Process result based on type
+                prompts = load_prompts()
                 if output_type == "tabular":
                     final_data = query_result
                 elif output_type == "descriptive":

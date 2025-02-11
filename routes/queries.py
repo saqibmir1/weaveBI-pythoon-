@@ -36,7 +36,7 @@ async def save_query(
             },
         )
 
-@QueryRoute.post("/execute", summary="Run a query")
+@QueryRoute.post("/execute", summary="Run a query and save output in database")
 async def execute_query(
     query_id: int,
     db: AsyncSession = Depends(get_db),

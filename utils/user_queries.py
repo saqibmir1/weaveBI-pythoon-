@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status
 from datetime import datetime
-from config.prompt_config import settings as prompt_settings
 from schemas.databases import DbCredentials, UpdatedCredentials
+from langchain_core.output_parsers.string import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
+from langchain_core.messages import SystemMessage
 from decimal import Decimal
 import yaml
 
@@ -60,6 +62,7 @@ def load_prompts():
         prompts = yaml.safe_load(f)
     return prompts
 
+
 def choose_prompt(output_type, schema, database_provider):
     prompts = load_prompts()
     if output_type == "tabular":
@@ -87,3 +90,27 @@ def choose_prompt(output_type, schema, database_provider):
 def limit_query(sql_query):
     if sql_query.strip().lower().startswith("select") and 'LIMIT' not in sql_query:
         return f'{sql_query.strip().rstrip(";")} LIMIT 100;'      # hard coded limit to 100 rows for now :p
+
+
+async def generate_sql_query(llm, guard_rail, query_text, output_type, schema, database_provider):
+    prompt = choose_prompt(output_type, schema, database_provider)
+    chat_template = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(content=prompt),
+            HumanMessagePromptTemplate.from_template("User question: \n{input}"),
+        ]
+    )
+    output_parser = StrOutputParser()
+    llm_chain = chat_template | llm | output_parser
+    guard_rail_chain = guard_rail | llm_chain
+
+    sql_query = guard_rail_chain.invoke({"input": query_text})
+
+    # check if guardrails failed
+    if isinstance(sql_query, dict) and sql_query.get("output") == "I'm sorry, I can't respond to that.":
+        sql_query = "Query blocked by guardrails"
+        final_data = "Query blocked by guardrails"
+    else:
+        final_data = None
+
+    return sql_query, final_data

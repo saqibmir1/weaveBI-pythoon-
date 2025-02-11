@@ -1,6 +1,5 @@
 import os
 import json
-import yaml
 import asyncio
 
 from typing import List
@@ -23,7 +22,7 @@ from models.tags import Tag
 from models.dashboards import Dashboard, dashboard_queries, dashboard_tags
 from schemas.dashboards import DashboardCreate, DashboardUpdate, UpdateQueriesRequest
 from utils.logger import logger
-from utils.user_queries import result_to_json, load_prompts, choose_prompt, limit_query
+from utils.user_queries import result_to_json, load_prompts, choose_prompt
 from config.llm_config import settings as llm_settings
 from config import llm_config
 
