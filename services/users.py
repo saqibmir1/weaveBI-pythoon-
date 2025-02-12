@@ -102,7 +102,7 @@ class UserService:
         user = result.scalar_one_or_none()
         if user:
             otp= str(random.randint(100000, 999999))
-            redis_client = Redis(decode_responses=True)
+            redis_client = Redis(decode_responses=True, host='redis')
             await redis_client.setex(f"otp:{email}", 300, otp)
             await redis_client.close()
             logger.info(f"OTP generated for {email}")

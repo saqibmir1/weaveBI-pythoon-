@@ -1,19 +1,28 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm as builder
+
+RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-ADD . /app/
+COPY pyproject.toml .
+COPY uv.lock .
 
-RUN uv sync --frozen
+RUN uv pip install --system .
 
-ENV PATH="/app/.venv/bin:$PATH"
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+COPY . .
 
 EXPOSE 8000
 
-RUN alembic revision --autogenerate -m "init" || echo "Alembic revision already exists"
-RUN alembic upgrade head || echo "Alembic upgrade failed"
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
-CMD ["uv", "run", "main.py"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port 8000"]
