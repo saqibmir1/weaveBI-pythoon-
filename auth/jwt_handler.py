@@ -13,7 +13,7 @@ secret_key = settings.secret_key
 
 def sign_jwt(email:str) -> Dict[str,str]:
     # set the expiry time
-    payload = {"email": email, "expires": time.time()+86400}
+    payload = {"email": email, "expires": time.time() + 24 * 60 * 60} # 24 hrs
     return token_response(encode(payload, secret_key, algorithm=settings.algorithm))
 
 

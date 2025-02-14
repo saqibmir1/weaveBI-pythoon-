@@ -85,7 +85,7 @@ async def get_insights(
             error=str(exc)
         )
 
-@QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
+@QueryRoute.post("/link-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
 async def link_query_to_dashboard(
     query_id: int,
     dashboard_id: int,
@@ -112,6 +112,34 @@ async def link_query_to_dashboard(
                 "error": {"message": f"{e}"},
                 },
             )
+    
+@QueryRoute.post("/unlink-from-dashboard", response_model=ApiResponse, summary="'Disassociate' a query with a dashboard")
+async def unlink_query_to_dashboard(
+    query_id: int,
+    dashboard_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    try:
+        success = await QueryController.unlink_query_to_dashboard(query_id, dashboard_id, db, user)
+        if not success:
+            return ApiResponse(
+                success=False,
+                message="Couldn't unlink query to dashboard."
+            )
+        return ApiResponse(
+            success=True,
+            message="Query unlinked to dashboard successfully."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't unlink query to dashboard.",
+                "error": {"message": f"{e}"},
+                },
+            )
 
 @QueryRoute.get("/fetch-database-queries/{database_id}", summary="Fetch all queries associated with a database.")
 async def fetch_database_queries(
@@ -134,16 +162,31 @@ async def fetch_database_queries(
     except Exception as exc:
         return exc
     
-@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
-async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+@QueryRoute.get("/count/{database_id}", summary="Fetch count of queries for a database.")
+async def get_db_query_count(
+    database_id:int,
+    user:User=Depends(get_current_user),
+    db:AsyncSession=Depends(get_db),
+):
     try:
-        queries_count = await QueryController.get_queries_count(database_id, user, db)
-        return ApiResponse(
-            data={"count": queries_count}
-        )
+        count = await QueryController.get_db_query_count(database_id, user, db)
+        return {
+            "count": count
+        }
+    except Exception as e:
+        return e
     
-    except Exception as exc:
-        return exc
+    
+# @QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
+# async def get_queries_count(dashboard_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+#     try:
+#         queries_count = await QueryController.get_queries_count(dashboard_id, user, db)
+#         return ApiResponse(
+#             data={"count": queries_count}
+#         )
+    
+#     except Exception as exc:
+#         return exc
 
 @QueryRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a query")
 async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):

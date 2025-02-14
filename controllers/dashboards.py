@@ -47,3 +47,7 @@ class DashboardController:
     async def get_dashboards_by_tags(tags, user:User, db:AsyncSession, page:int, limit:int):
           dashboard_service = DashboardService(db)
           return await dashboard_service.get_dashboards_by_tags(tags, user, page, limit)
+    
+    async def get_queries_count(dashboard_id:int, user:User, db:AsyncSession):
+          dashboard_service = DashboardService(db)
+          return await dashboard_service.get_queries_count(dashboard_id, user)

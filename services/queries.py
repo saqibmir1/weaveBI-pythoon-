@@ -269,6 +269,83 @@ class QueryService:
                 detail=f"Error while linking query to dashboard: {str(e)}"
             )
 
+    async def unlink_query_from_dashboard(
+        self,
+        query_id: int,
+        dashboard_id: int,
+        user: User,
+    ):
+        try:
+            # Verify both query and dashboard exist and belong to the user
+            query_stmt = select(Query).where(
+                Query.id == query_id,
+                Query.is_deleted == False,
+                Query.user_id == user.id
+            )
+            dashboard_stmt = select(Dashboard).where(
+                Dashboard.id == dashboard_id,
+                Dashboard.is_deleted == False,
+                Dashboard.user_id == user.id
+            )
+            query_result = await self.db.execute(query_stmt)
+            dashboard_result = await self.db.execute(dashboard_stmt)
+            
+            query = query_result.scalar_one_or_none()
+            dashboard = dashboard_result.scalar_one_or_none()
+
+            # Validate query exists
+            if not query:
+                logger.debug(f"Query {query_id} not found or is deleted or doesn't belong to user.")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Query with id {query_id} not found"
+                )
+
+            # Validate dashboard exists
+            if not dashboard:
+                logger.debug(f"Dashboard {dashboard_id} not found or is deleted or doesn't belong to user.")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Dashboard with id {dashboard_id} not found"
+                )
+
+            # Check if the relationship exists
+            existing_stmt = select(dashboard_queries).where(
+                dashboard_queries.c.dashboard_id == dashboard_id,
+                dashboard_queries.c.query_id == query_id
+            )
+            existing = await self.db.execute(existing_stmt)
+            
+            if not existing.first():
+                return {
+                    "success": True,
+                    "message": f"Query {query_id} is not linked to dashboard {dashboard_id}"
+                }
+
+            # Delete the relationship from the junction table
+            stmt = dashboard_queries.delete().where(
+                dashboard_queries.c.dashboard_id == dashboard_id,
+                dashboard_queries.c.query_id == query_id
+            )
+            await self.db.execute(stmt)
+            await self.db.commit()
+
+            logger.info(f"Successfully unlinked query {query_id} from dashboard {dashboard_id}")
+            return {
+                "success": True,
+                "message": f"Query {query_id} unlinked from dashboard {dashboard_id} successfully"
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error in unlink_query_from_dashboard: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error while unlinking query from dashboard: {str(e)}"
+            )
+
     async def fetch_database_queries(self, dashboard_id: int, user: User, page: int, limit: int, search_term: str = None):
         try:
             offset = (page - 1) * limit
@@ -319,15 +396,10 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries."
             )
-
-    async def get_queries_count(self, database_id: int, user: User):
+        
+    async def get_db_query_count(self, database_id: int, user: User):
         try:
-            query = select(func.count()).select_from(Query).where(
-                Query.db_id == database_id,
-                Query.is_deleted == False,
-                Query.user_id == user.id
-            )
-
+            query = select(func.count()).where((Query.db_id == database_id) & (Query.user_id == user.id) & (Query.is_deleted == False))
             result = await self.db.execute(query)
             count = result.scalar()
             return count
@@ -337,6 +409,22 @@ class QueryService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error occurred while fetching queries count."
             )
+
+
+    # async def get_queries_count(self, dashboard_id: int, user: User):
+    #     try:
+           
+    #         query = select(func.count()).select_from(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id)
+
+    #         result = await self.db.execute(query)
+    #         count = result.scalar()
+    #         return count
+    #     except Exception as e:
+    #         logger.error(f'Error fetching count - {str(e)}')
+    #         raise HTTPException(
+    #             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #             detail="Error occurred while fetching queries count."
+    #         )
         
     async def delete_query(self, id:int, user:User):
         try:
