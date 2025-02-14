@@ -31,9 +31,9 @@ class QueryController:
         dashboard_service = QueryService(db)
         return await dashboard_service.fetch_database_queries(database_id, user, page, limit, search)
     
-    async def get_queries_count(dashboard_id:int, user: User,  db: AsyncSession):
-        dashboard_service = QueryService(db)
-        return await dashboard_service.get_queries_count(dashboard_id, user)
+    # async def get_queries_count(dashboard_id:int, user: User,  db: AsyncSession):
+    #     dashboard_service = QueryService(db)
+    #     return await dashboard_service.get_queries_count(dashboard_id, user)
 
     async def delete_query(id: int, user: User, db: AsyncSession,):
         query_service = QueryService(db=db)

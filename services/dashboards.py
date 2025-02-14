@@ -175,7 +175,7 @@ class DashboardService:
     # update dashboard (name and desciption using id)
         result = await self.db.execute(
             select(Dashboard).where(
-                (Dashboard.id==updated_dashboard.dashboard_id) & (Dashboard.user_id==user.id) & (Dashboard.is_deleted==False)###### check is_deleted later ###########
+                (Dashboard.id==updated_dashboard.dashboard_id) & (Dashboard.user_id==user.id) & (Dashboard.is_deleted==False)
             )
         )
 
@@ -190,19 +190,36 @@ class DashboardService:
             return True
         return False
 
-    async def delete_dashboard(self, user:User, dashboard_id:int):
-    # delete dashboard using id
+    async def delete_dashboard(self, user: User, dashboard_id: int):
+        # delete dashboard using id
         try:
-            # delete from Dashboard
-            await self.db.execute(update(Dashboard).where((Dashboard.id == dashboard_id) & (Dashboard.user_id==user.id)).values(is_deleted=True))
+            # Check if the dashboard is already deleted
+            result = await self.db.execute(
+                select(Dashboard).where(
+                    (Dashboard.id == dashboard_id) & 
+                    (Dashboard.user_id == user.id) & 
+                    (Dashboard.is_deleted == False)
+                )
+            )
+            dashboard = result.scalar_one_or_none()
+
+            if not dashboard:
+                logger.warning(f"Dashboard with ID {dashboard_id} not found or already deleted.")
+                return False
+
+            # delete query association
+            await self.db.execute(dashboard_queries.delete().where(dashboard_queries.c.dashboard_id == dashboard_id))
+            logger.info(f"Deleted all queries associated with dashboard with id: {dashboard_id}")
+
+            # delete from Dashboard itself
+            await self.db.execute(update(Dashboard).where((Dashboard.id == dashboard_id) & (Dashboard.user_id == user.id)).values(is_deleted=True))
             logger.info(f"Soft Deleted dashboard with id: {dashboard_id}")
 
             await self.db.commit()
             return True
 
         except Exception as e:
-            logger.error(
-                f"Error deleting dashboard {dashboard_id} - {str(e)}")
+            logger.error(f"Error deleting dashboard {dashboard_id} - {str(e)}")
             await self.db.rollback()
             return False
         
@@ -212,7 +229,7 @@ class DashboardService:
 
         # Get all queries of that dashboard
         queries_result = await self.db.execute(
-        select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False))
+        select(Query).join(dashboard_queries).where(dashboard_queries.c.dashboard_id == dashboard_id,Query.is_deleted == False, Query.user_id == user.id))
         queries = queries_result.scalars().all()
 
         if not queries:
@@ -500,7 +517,7 @@ class DashboardService:
             offset = (page - 1) * limit
 
             query = select(Query, func.count().over().label('total_count')).join(dashboard_queries).where(
-                (dashboard_queries.c.dashboard_id == dashboard_id) & (Query.is_deleted == False)
+                (dashboard_queries.c.dashboard_id == dashboard_id) & (Query.is_deleted == False) & (Query.user_id == user.id)
             ).limit(limit).offset(offset)
 
             result = await self.db.execute(query)

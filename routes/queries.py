@@ -177,16 +177,16 @@ async def get_db_query_count(
         return e
     
     
-@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
-async def get_queries_count(dashboard_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
-    try:
-        queries_count = await QueryController.get_queries_count(dashboard_id, user, db)
-        return ApiResponse(
-            data={"count": queries_count}
-        )
+# @QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
+# async def get_queries_count(dashboard_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+#     try:
+#         queries_count = await QueryController.get_queries_count(dashboard_id, user, db)
+#         return ApiResponse(
+#             data={"count": queries_count}
+#         )
     
-    except Exception as exc:
-        return exc
+#     except Exception as exc:
+#         return exc
 
 @QueryRoute.delete("/{id}", response_model=ApiResponse, summary="Delete a query")
 async def delete_query(id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
