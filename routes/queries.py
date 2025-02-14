@@ -162,10 +162,25 @@ async def fetch_database_queries(
     except Exception as exc:
         return exc
     
-@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
-async def get_queries_count(database_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+@QueryRoute.get("/count/{database_id}", summary="Fetch count of queries for a database.")
+async def get_db_query_count(
+    database_id:int,
+    user:User=Depends(get_current_user),
+    db:AsyncSession=Depends(get_db),
+):
     try:
-        queries_count = await QueryController.get_queries_count(database_id, user, db)
+        count = await QueryController.get_db_query_count(database_id, user, db)
+        return {
+            "count": count
+        }
+    except Exception as e:
+        return e
+    
+    
+@QueryRoute.get("/count/{dashboard_id}", response_model=ApiResponse, summary="Fetch count of queries in a dashboard.")
+async def get_queries_count(dashboard_id:int, user:User=Depends(get_current_user), db:AsyncSession=Depends(get_db)):
+    try:
+        queries_count = await QueryController.get_queries_count(dashboard_id, user, db)
         return ApiResponse(
             data={"count": queries_count}
         )

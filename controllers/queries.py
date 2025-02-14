@@ -50,3 +50,7 @@ class QueryController:
     async def suggest_queries(db_id:int, user: User, db: AsyncSession):
         query_service = QueryService(db=db)
         return await query_service.suggest_queries(db_id, user)
+    
+    async def get_db_query_count(database_id:int, user: User, db: AsyncSession):
+        query_service = QueryService(db=db)
+        return await query_service.get_db_query_count(database_id, user)
