@@ -85,7 +85,7 @@ async def get_insights(
             error=str(exc)
         )
 
-@QueryRoute.post("/link-query-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
+@QueryRoute.post("/link-to-dashboard", response_model=ApiResponse, summary="Associate a query with a dashboard")
 async def link_query_to_dashboard(
     query_id: int,
     dashboard_id: int,
@@ -109,6 +109,34 @@ async def link_query_to_dashboard(
             detail={
                 "success": False,
                 "message": "Couldn't link query to dashboard.",
+                "error": {"message": f"{e}"},
+                },
+            )
+    
+@QueryRoute.post("/unlink-from-dashboard", response_model=ApiResponse, summary="'Disassociate' a query with a dashboard")
+async def unlink_query_to_dashboard(
+    query_id: int,
+    dashboard_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    try:
+        success = await QueryController.unlink_query_to_dashboard(query_id, dashboard_id, db, user)
+        if not success:
+            return ApiResponse(
+                success=False,
+                message="Couldn't unlink query to dashboard."
+            )
+        return ApiResponse(
+            success=True,
+            message="Query unlinked to dashboard successfully."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "success": False,
+                "message": "Couldn't unlink query to dashboard.",
                 "error": {"message": f"{e}"},
                 },
             )

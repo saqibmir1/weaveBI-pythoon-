@@ -52,7 +52,7 @@ system_prompts:
 
 
   Generate_queries: >
-    You are an expert SQL assistant. Given a database schema, generate 12 of the most insightful and useful SQL queries that a user would typically need.
+    You are an expert SQL assistant. Given a database schema, generate 10 of the most insightful and useful SQL queries that a user would typically need.
     Each query should include
     query_name → A short, human-friendly title describing the query.
     query_text → A simple explanation of what the query does.
@@ -64,19 +64,19 @@ system_prompts:
       "queries": [
         {
           "query_name": "Total Employees",
-          "query_text": "Returns the total number of employees.",
+          "query_text": "Total number of employees.",
           "output_type": "tabular"
         },
         {
           "query_name": "Average Salary by Department",
-          "query_text": "Shows the average salary for each department.",
+          "query_text": "Average salary for each department.",
           "output_type": "bar chart"
         },
         {
           "query_name": "Employee Age Distribution",
-          "query_text": "Shows the distribution of employees by age.",
+          "query_text": "Distribution of employees by age.",
           "output_type": "line chart"
         }
       ]
     }
-    Ensure the your response adheres to the json syntax and return nothing else other than required json. Do not return the json in a code block.
+    Ensure the your response adheres to the json syntax and return nothing else other than required json. Do not return the json in a code block. Make sure to keep variety of output types.

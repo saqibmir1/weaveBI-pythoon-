@@ -538,7 +538,7 @@ class DashboardService:
 
         # If tags is empty or None, return all dashboards
         if not tags:
-            return await self.get_dashboards(user, page, limit)
+            return await self.get_dashboards(user, page, limit, search=None)
 
         query = select(Dashboard, func.count().over().label('total_count')).join(dashboard_tags).join(Tag).where(
             (Dashboard.user_id == user.id) &

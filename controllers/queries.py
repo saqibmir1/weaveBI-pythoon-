@@ -22,6 +22,10 @@ class QueryController:
     async def link_query_to_dashboard(query_id: int, dashboard_id: int, db: AsyncSession, user: User):
         query_service = QueryService(db=db)
         return await query_service.link_query_to_dashboard(query_id, dashboard_id, user)
+    
+    async def unlink_query_to_dashboard(query_id: int, dashboard_id: int, db: AsyncSession, user: User):
+        query_service = QueryService(db=db)
+        return await query_service.unlink_query_from_dashboard(query_id, dashboard_id, user)
 
     async def fetch_database_queries(database_id:int, user: User,  db: AsyncSession, page:int, limit:int, search:str):
         dashboard_service = QueryService(db)
