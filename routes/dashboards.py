@@ -199,10 +199,11 @@ async def execute_dashboard_queries(
 ):
     try:
         data = await DashboardController.execute_dashboard_queries(id, db, user)
-        return ApiResponse(
-            success=True,
-            message="Queries executed successfully"
-        )
+        if data:
+            return ApiResponse(
+                success=True,
+                message="Queries executed successfully"
+            )
     except Exception as exc:
         return ApiResponse(
             success=False,
@@ -255,3 +256,16 @@ async def update_dashboard_layout(
             error=str(exc)
         )
 
+@DashboardRoute.get("/query-count/{dashboard_id}", summary="Get count of queries in a dashboard")
+async def get_queries_count(
+    dashboard_id:int,
+    user:User=Depends(get_current_user),
+    db:AsyncSession=Depends(get_db)
+):
+    try:
+        count = await DashboardController.get_queries_count(dashboard_id, user, db)
+        return {
+            count: count
+        }
+    except Exception as exc:
+        return exc

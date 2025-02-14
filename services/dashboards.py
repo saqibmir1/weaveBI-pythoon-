@@ -586,3 +586,22 @@ class DashboardService:
         ]
 
         return dashboards, total_count
+
+
+    async def get_queries_count(self, dashboard_id: int, user: User):
+        try:
+            query = select(func.count()).select_from(dashboard_queries).where(
+                (dashboard_queries.c.dashboard_id == dashboard_id) & (Query.is_deleted == False) & (Query.user_id == user.id)
+            )
+
+            result = await self.db.execute(query)
+            count = result.scalar()
+
+            return count
+
+        except Exception as e:
+            logger.error(f"Error fetching queries count - {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while fetching queries count."
+            )
